@@ -27,7 +27,7 @@ config/
   batch/
     reports.yaml           # Hourly/Daily reporting job config
     training.yaml          # MLlib training job config
-.env.example               # Environment variables to copy into .env
+.env.demo               # Environment variables to copy into .env
 docker-compose.yml         # Zookeeper, Kafka, HDFS, Spark, MongoDB
 requirements.txt           # Python deps for producer and utilities
 README.md                  # This file
@@ -49,7 +49,7 @@ Optional for local runs without Docker: Java 8+/11 and Spark 3.5.x
 1) Copy environment template and adjust values as needed.
 
 ```bash
-cp env.example .env
+cp env.demo .env
 # PowerShell alternative:
 # Copy-Item env.example .env
 ```
@@ -92,8 +92,6 @@ spark-submit batch_reports.py --config config/batch/reports.yaml
 spark-submit training_job.py --config config/batch/training.yaml
 ```
 
-Note: This repo provides configs and infra. Implement the scripts (`producer.py`, `streaming_job.py`, `batch_reports.py`, `training_job.py`) to consume these configs. See sample configs under `config/`.
-
 ---
 
 ### Configuration Overview
@@ -121,18 +119,5 @@ Source: `Condition Monitoring of Hydraulic Systems` (UCI). The dataset consists 
 - **Storage**: Raw JSON and windowed aggregates are written to HDFS in Parquet for low-cost analytics and historical modeling.
 
 ---
-
-### Troubleshooting
-
-- If Kafka clients cannot connect from your host, check `KAFKA_ADVERTISED_LISTENERS` in `docker-compose.yml` and match it to your host IP.
-- On Windows, ensure Docker Desktop uses WSL2 backend and has enough RAM/CPU assigned.
-- If Spark cannot write to HDFS, verify HDFS is healthy and the checkpoint directories exist (or will be auto-created by Spark).
-- If MongoDB writes fail, verify `MONGO_URI` and that the database/collection names match environment variables.
-
----
-
-### License
-
-MIT
 
 
