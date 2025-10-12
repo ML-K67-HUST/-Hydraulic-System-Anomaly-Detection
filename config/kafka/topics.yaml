@@ -1,0 +1,13 @@
+# Kafka topic definitions for the project
+
+version: 1
+
+topics:
+  - name: hydraulic_sensor_data
+    partitions: ${KAFKA_PARTITIONS:8}
+    replication_factor: ${KAFKA_REPLICATION_FACTOR:1}
+    configs:
+      cleanup.policy: delete
+      retention.ms: 604800000   # 7 days
+      min.insync.replicas: 1
+      segment.ms: 3600000

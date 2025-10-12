@@ -1,0 +1,64 @@
+# Spark Structured Streaming configuration
+
+app:
+  name: ${SPARK_APP_NAME:HydraulicStreaming}
+
+source:
+  kind: kafka
+  kafka:
+    bootstrap_servers: ${KAFKA_BROKERS:localhost:9092}
+    topic: ${KAFKA_TOPIC:hydraulic_sensor_data}
+    starting_offsets: latest
+  schema:
+    format: json
+    schema_path: config/kafka/schema.json
+  event_time_column: event_time
+
+windowing:
+  watermark_minutes: ${SPARK_WATERMARK_MINUTES:10}
+  window_minutes: ${SPARK_WINDOW_MINUTES:5}
+  slide_minutes: ${SPARK_WINDOW_SLIDE_MINUTES:1}
+
+aggregations:
+  - name: avg_cooler_efficiency
+    expr: avg(cooler_efficiency_pct)
+  - name: std_pressure1
+    expr: stddev_samp(pressure1_bar)
+  - name: max_temperature
+    expr: max(temperature_cooler_out_C)
+
+alerts:
+  rules:
+    - name: efficiency_drop
+      condition: avg_cooler_efficiency < ${ALERT_COOLER_EFFICIENCY_MIN_PCT:20}
+    - name: temperature_exceed
+      condition: max_temperature > ${ALERT_TEMPERATURE_MAX_C:75}
+
+sinks:
+  # Raw records sink (optional): write the ingested JSON
+  raw:
+    kind: hdfs
+    path: ${SPARK_OUTPUT_RAW:hdfs://namenode:8020/data/hydraulic/raw}
+    format: parquet
+    mode: append
+
+  aggregates:
+    kind: hdfs
+    path: ${SPARK_OUTPUT_AGG:hdfs://namenode:8020/data/hydraulic/aggregates}
+    format: parquet
+    mode: append
+
+  alerts:
+    kind: mongodb
+    uri: ${MONGO_URI:mongodb://mongo:27017}
+    database: ${MONGO_DB:hydraulic}
+    collection: ${MONGO_ALERTS_COLLECTION:alerts}
+
+  latest_metrics:
+    kind: mongodb
+    uri: ${MONGO_URI:mongodb://mongo:27017}
+    database: ${MONGO_DB:hydraulic}
+    collection: ${MONGO_LATEST_COLLECTION:latest_metrics}
+
+checkpointing:
+  path: ${SPARK_CHECKPOINT_DIR:hdfs://namenode:8020/user/stream/checkpoints/hydraulic}

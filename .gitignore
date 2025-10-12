@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Python tooling
+.mypy_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+
+# Spark checkpoints and temp
+checkpoint/
+checkpoints/
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Data dumps
+data/
+
+# Env files
+.env
+
+# IDE
+.vscode/
+.idea/
+
+
