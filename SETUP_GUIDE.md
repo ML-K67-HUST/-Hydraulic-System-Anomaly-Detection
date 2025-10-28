@@ -76,13 +76,6 @@ Place your CSV at: `./data/hydraulic_system.csv`
 - `temperature_cooler_out_C` - Temperature output (float, Celsius)
 - `cooler_condition` - Condition label (string: "normal", "degraded", "faulty")
 
-**CSV Example:**
-```csv
-device_id,cycle_index,event_time,cooler_efficiency_pct,pressure1_bar,pressure2_bar,temperature_cooler_out_C,cooler_condition
-HYD001,1,2024-01-01 00:00:00,95.5,150.2,148.7,45.3,normal
-HYD001,2,2024-01-01 00:00:01,94.8,151.0,149.1,46.1,normal
-HYD001,3,2024-01-01 00:00:02,15.2,145.5,143.2,78.5,faulty
-```
 
 ### Step 4: Start Docker Infrastructure
 
@@ -604,16 +597,3 @@ SPARK_WINDOW_SLIDE_MINUTES=5 # Larger slides = less overlap
 5. **Security:** Add authentication (MongoDB, Kafka, HDFS)
 
 ---
-
-## Additional Resources
-
-- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
-- [Spark Structured Streaming Guide](https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html)
-- [HDFS Documentation](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html)
-- [MongoDB Documentation](https://docs.mongodb.com/)
-
----
-
-**Last Updated:** 2025-10-28
-**Architecture:** Kappa (Stream Processing)
-**Stack:** Kafka + Spark + HDFS + MongoDB
