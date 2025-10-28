@@ -51,7 +51,7 @@ Optional for local runs without Docker: Java 8+/11 and Spark 3.5.x
 ```bash
 cp env.demo .env
 # PowerShell alternative:
-# Copy-Item env.example .env
+# Copy-Item env.demo .env
 ```
 
 2) Start infrastructure.

@@ -18,6 +18,7 @@
     "pressure1_bar": { "type": "number" },
     "pressure2_bar": { "type": "number" },
     "temperature_cooler_out_C": { "type": "number" },
+    "cooler_condition": { "type": "string" },
 
     "features": {
       "type": "object",
