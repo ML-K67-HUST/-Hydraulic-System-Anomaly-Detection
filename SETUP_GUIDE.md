@@ -4,8 +4,7 @@
 
 - Docker & Docker Compose installed
 - Python 3.8+ installed
-- Your CSV file placed in `./data/hydraulic_system.csv`
-
+  
 ## Quick Start (TL;DR)
 
 ```bash
@@ -588,12 +587,4 @@ SPARK_WINDOW_SLIDE_MINUTES=5 # Larger slides = less overlap
 
 ---
 
-## Next Steps
 
-1. **Add Dashboard:** Build UI to visualize alerts from MongoDB
-2. **Add Real Alerting:** Send emails/Slack notifications for anomalies
-3. **Model Deployment:** Serve trained ML models for predictions
-4. **Scale:** Add more Spark workers for higher throughput
-5. **Security:** Add authentication (MongoDB, Kafka, HDFS)
-
----
