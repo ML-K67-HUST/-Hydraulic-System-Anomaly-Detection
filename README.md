@@ -1,123 +1,187 @@
-### Hydraulic System Anomaly Detection (Kappa Architecture)
+# 🔧 Hydraulic System Anomaly Detection
 
-This repository provides configuration, infrastructure, and documentation to implement a real-time anomaly detection pipeline for hydraulic cooler condition monitoring using a Kappa-style architecture (stream-first, with batch for reporting/training).
+Real-time monitoring system cho hydraulic test rig sử dụng Kafka, Prometheus, và Grafana.
 
-The goal is to detect degradation in the hydraulic cooler condition in near real time, aggregating sensor streams, and alerting when critical thresholds are crossed.
+## 📊 Quick Start
 
-#### Key Components
-- **Data Ingestion (Kafka)**: Convert CSV dataset cycles into a continuous, partitioned event stream.
-- **Stream Processing (Spark Structured Streaming)**: Windowed aggregations, watermarks, and alerting logic.
-- **Serving Layers**:
-  - **Data Lake (HDFS/Parquet)**: Full history of raw and aggregated records for analysis.
-  - **NoSQL (MongoDB)**: Low-latency sink for active alerts and latest rollups.
-- **Batch (Spark Batch)**: Scheduled reports and ML model training with MLlib.
-
----
-
-### Repository Structure
-
-```text
-config/
-  kafka/
-    topics.yaml            # Topics, partitions, retention
-    producer.yaml          # Producer settings: keying, rate, serialization
-    schema.json            # Message schema for JSON payloads
-  spark/
-    streaming.yaml         # Structured Streaming: schema, windows, thresholds, sinks
-  batch/
-    reports.yaml           # Hourly/Daily reporting job config
-    training.yaml          # MLlib training job config
-.env.demo               # Environment variables to copy into .env
-docker-compose.yml         # Zookeeper, Kafka, HDFS, Spark, MongoDB
-requirements.txt           # Python deps for producer and utilities
-README.md                  # This file
-```
-
----
-
-### Prerequisites
-- Docker and Docker Compose
-- Python 3.10+ (for producer utilities and local tooling)
-- Sufficient disk/memory for Kafka, HDFS, Spark, and MongoDB containers
-
-Optional for local runs without Docker: Java 8+/11 and Spark 3.5.x
-
----
-
-### Quick Start
-
-1) Copy environment template and adjust values as needed.
+### 1. Setup môi trường
 
 ```bash
-cp env.demo .env
-# PowerShell alternative:
-# Copy-Item env.demo .env
+# Tạo virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start services
+bash scripts/setup_prometheus.sh
 ```
 
-2) Start infrastructure.
+### 2. Chạy real-time streaming
 
 ```bash
-docker compose up -d
+# Terminal 1: Start consumer
+cd src
+python consumer.py prometheus &
+
+# Terminal 2: Start producer
+# Single cycle
+python producer.py 0
+
+# Multiple cycles (10 cycles)
+python producer.py 0 10
+
+# Continuous mode (random cycles)
+python producer.py --continuous 10
+
+# All 2,205 cycles (~37 hours!)
+python producer.py --all
 ```
 
-3) Create Kafka topic (if not auto-created). Example using the compose Kafka broker name `kafka`:
+### 3. Xem dashboard
 
-```bash
-docker exec -it kafka \
-  kafka-topics --bootstrap-server kafka:9092 \
-  --create --topic hydraulic_sensor_data --partitions 8 --replication-factor 1 \
-  --config cleanup.policy=delete --config retention.ms=604800000
+Mở Grafana: **http://localhost:3000** (admin/admin)
+
+Dashboard sẽ tự động có sẵn: **Hydraulic System - Prometheus**
+
+---
+
+## 🏗️ Kiến trúc
+
+```
+Sensors (17) → Producer → Kafka → Consumer → Pushgateway → Prometheus → Grafana
 ```
 
-4) Prepare data: Place the CSV in a local `data/` directory and update `PRODUCER_CSV_PATH` in `.env` or `config/kafka/producer.yaml`.
+### **17 Sensors:**
+- **PS1-6:** Pressure sensors (100Hz)
+- **EPS1:** Motor power (100Hz)  
+- **FS1-2:** Volume flow (10Hz)
+- **TS1-4:** Temperature (1Hz)
+- **CE, CP, SE, VS1:** Cooling/vibration (1Hz)
 
-5) Run producer (example command once you implement the producer script):
+---
 
-```bash
-python producer.py --config config/kafka/producer.yaml
+## 📁 Cấu trúc project
+
 ```
-
-6) Run Spark Structured Streaming job (example):
-
-```bash
-spark-submit \
-  --master spark://spark-master:7077 \
-  streaming_job.py --config config/spark/streaming.yaml
-```
-
-7) Run batch reports / training (examples):
-
-```bash
-spark-submit batch_reports.py --config config/batch/reports.yaml
-spark-submit training_job.py --config config/batch/training.yaml
+├── src/                          # Source code
+│   ├── producer.py               # Kafka producer (17 sensors)
+│   ├── consumer.py               # Consumers (Prometheus & MongoDB)
+│   └── grafana_prometheus_dashboard.py  # Tạo dashboard
+├── scripts/                      # Shell scripts
+│   ├── setup_prometheus.sh       # Setup toàn bộ stack
+│   ├── quick_test.sh            # Test nhanh 1 cycle
+│   └── demo_realtime.sh         # Demo liên tục
+├── config/                      # Configurations
+│   ├── kafka/                   # Kafka configs
+│   ├── spark/                   # Spark configs (optional)
+│   └── batch/                   # Batch processing configs
+├── data/                        # Sensor data files
+│   ├── PS1.txt ... PS6.txt     # Pressure data
+│   ├── EPS1.txt                # Motor power
+│   ├── FS1.txt, FS2.txt        # Flow rate
+│   └── TS1.txt ... TS4.txt     # Temperature
+├── grafana/                    # Grafana provisioning
+│   └── provisioning/
+│       └── datasources/
+│           └── prometheus.yml  # Auto-configure Prometheus
+├── docker-compose.khang.yml    # Docker services
+├── prometheus.yml              # Prometheus config
+└── docs/                       # Documentation
+    ├── SETUP.md               # Setup chi tiết
+    └── ARCHITECTURE.md        # Kiến trúc hệ thống
 ```
 
 ---
 
-### Configuration Overview
+## 🚀 Demo Scripts
 
-- `config/kafka/topics.yaml`: Topic definitions (name, partitions, retention).
-- `config/kafka/producer.yaml`: CSV path, keying/partitioning strategy, rate control, and serialization.
-- `config/kafka/schema.json`: Canonical JSON schema for each sensor event.
-- `config/spark/streaming.yaml`: Kafka source, explicit schema reference, watermark/window, aggregations, alert thresholds, and sinks (HDFS/MongoDB).
-- `config/batch/reports.yaml`: Hourly/Daily jobs, lookback windows, aggregation targets, and output locations.
-- `config/batch/training.yaml`: MLlib training configuration, features/label, split, model hyperparameters, and output paths.
+### **Quick Test (1 cycle - 60s):**
+```bash
+./scripts/quick_test.sh
+```
 
----
-
-### Dataset Notes
-
-Source: `Condition Monitoring of Hydraulic Systems` (UCI). The dataset consists of operational cycles with ~17 sensor/feature columns and a labeled cooler condition column (`cooler_condition`). Map dataset columns to the schema fields in `config/kafka/schema.json`. Key anomaly features include `cooler_efficiency_pct` and temperatures such as `temperature_cooler_out_C`.
+### **Continuous Demo (10 cycles - 10 phút):**
+```bash
+./scripts/demo_realtime.sh
+```
 
 ---
 
-### Operational Guidance
+## 🔧 Services & Ports
 
-- **Partitioning**: Messages are keyed by `device_id` (or logical cycle grouping) to ensure ordering per device and parallelism across partitions.
-- **Watermarking & Windows**: Default watermark is 10 minutes; window is 5 minutes with 1-minute slide. Adjust for your actual event-time characteristics and latency tolerance.
-- **Alerting**: Example rule: 5-min average `cooler_efficiency_pct` < 20% OR 5-min max `temperature_cooler_out_C` > 75°C. Tune thresholds per your environment.
-- **Storage**: Raw JSON and windowed aggregates are written to HDFS in Parquet for low-cost analytics and historical modeling.
+| Service | Port | URL |
+|---------|------|-----|
+| Grafana | 3000 | http://localhost:3000 |
+| Prometheus | 9090 | http://localhost:9090 |
+| Pushgateway | 9091 | http://localhost:9091 |
+| Kafka | 9092, 29092 | localhost:29092 |
+| Zookeeper | 2181 | localhost:2181 |
 
 ---
 
+## 📖 Documentation
 
+- **[SETUP.md](docs/SETUP.md)** - Hướng dẫn setup chi tiết
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Kiến trúc và design decisions
+- **[PRODUCER_USAGE.md](docs/PRODUCER_USAGE.md)** - Chi tiết cách dùng producer (single/range/all cycles)
+
+---
+
+## 🎯 Features
+
+✅ **Real-time streaming** với Kafka  
+✅ **Time-series storage** với Prometheus  
+✅ **Beautiful dashboards** với Grafana  
+✅ **17 sensors** với sampling rates chính xác  
+✅ **Auto-refresh** dashboard mỗi 5 giây  
+✅ **No Enterprise license** - hoàn toàn FREE!  
+
+---
+
+## 🐛 Troubleshooting
+
+### Dashboard không hiển thị data?
+
+```bash
+# Check consumer đang chạy
+ps aux | grep consumer.py
+
+# Restart consumer nếu cần
+pkill -f 'consumer.py prometheus'
+cd src && python consumer.py prometheus &
+
+# Verify Prometheus có data
+curl 'http://localhost:9090/api/v1/query?query=hydraulic_messages_total'
+```
+
+### Services không start được?
+
+```bash
+# Stop tất cả
+docker-compose -f docker-compose.khang.yml down
+
+# Start lại
+bash scripts/setup_prometheus.sh
+```
+
+---
+
+## 📝 Requirements
+
+- Python 3.8+
+- Docker & Docker Compose
+- ~2GB RAM free
+
+---
+
+## 📄 License
+
+MIT License - Dự án học tập Big Data
+
+---
+
+## 👥 Authors
+
+Hydraulic System Anomaly Detection Team
