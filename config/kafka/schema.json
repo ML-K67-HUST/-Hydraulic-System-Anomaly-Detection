@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/hydraulic_sensor_event.schema.json",
+  "title": "HydraulicSensorEvent",
+  "type": "object",
+  "required": [
+    "device_id",
+    "cycle_index",
+    "event_time",
+    "cooler_efficiency_pct"
+  ],
+  "properties": {
+    "device_id": { "type": "string" },
+    "cycle_index": { "type": "integer", "minimum": 0 },
+    "event_time": { "type": "string", "format": "date-time" },
+
+    "cooler_efficiency_pct": { "type": "number" },
+    "pressure1_bar": { "type": "number" },
+    "pressure2_bar": { "type": "number" },
+    "temperature_cooler_out_C": { "type": "number" },
+    "cooler_condition": { "type": "string" },
+
+    "features": {
+      "type": "object",
+      "additionalProperties": { "type": ["number", "string", "null"] }
+    }
+  },
+  "additionalProperties": true
+}
