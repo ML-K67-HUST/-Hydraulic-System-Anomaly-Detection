@@ -60,5 +60,5 @@ tmp/
 temp/
 *.tmp
 
-
+# Data files (too large for git)
 data/
