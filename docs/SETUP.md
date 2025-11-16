@@ -36,12 +36,14 @@ source venv/bin/activate
 ### Step 2: Install Dependencies
 
 ```bash
-pip install -r requirements.prometheus.txt
+pip install -r requirements.txt
 ```
 
 **Packages installed:**
+
 - `kafka-python-ng`: Kafka client
 - `prometheus-client`: Prometheus metrics
+- `requests`: HTTP requests (for Grafana API)
 
 ### Step 3: Start Docker Services
 
@@ -50,12 +52,14 @@ bash scripts/setup_prometheus.sh
 ```
 
 **Script này sẽ:**
+
 1. ✅ Stop các containers cũ
 2. ✅ Start Prometheus stack (Prometheus + Pushgateway + Grafana)
 3. ✅ Wait for services ready
 4. ✅ Auto-create Grafana dashboard
 
 **Services started:**
+
 - Prometheus (port 9090)
 - Pushgateway (port 9091)
 - Grafana (port 3000)
@@ -83,6 +87,7 @@ docker ps
 ```
 
 **Test URLs:**
+
 - Grafana: http://localhost:3000 (admin/admin)
 - Prometheus: http://localhost:9090
 - Pushgateway: http://localhost:9091
@@ -98,11 +103,13 @@ docker ps
 ```
 
 **This will:**
+
 1. Start consumer in background
 2. Run producer for 1 cycle (60 seconds)
 3. ~43,680 messages sent
 
 **Expected result:**
+
 - Consumer logs messages
 - Prometheus collects metrics
 - Grafana dashboard updates
@@ -126,6 +133,7 @@ python producer.py 0
 ```
 
 **This will:**
+
 - Run 10 cycles (10 minutes total)
 - ~437,000 messages
 - Perfect for watching real-time updates
@@ -139,6 +147,7 @@ python producer.py 0
 http://localhost:3000
 
 **Login:**
+
 - Username: `admin`
 - Password: `admin`
 
@@ -149,6 +158,7 @@ Dashboard đã được tự động tạo:
 **Dashboards → Hydraulic System - Prometheus**
 
 URL trực tiếp:
+
 ```
 http://localhost:3000/d/a2744f7e-e88d-4112-aa97-c102abba3fdb/hydraulic-system-prometheus
 ```
@@ -171,6 +181,7 @@ http://localhost:3000/d/a2744f7e-e88d-4112-aa97-c102abba3fdb/hydraulic-system-pr
 ### Kafka Topics
 
 Topics được auto-create khi producer chạy:
+
 - `hydraulic-PS1` đến `hydraulic-PS6`
 - `hydraulic-EPS1`
 - `hydraulic-FS1`, `hydraulic-FS2`
@@ -182,22 +193,29 @@ Topics được auto-create khi producer chạy:
 File: `prometheus.yml`
 
 ```yaml
-scrape_interval: 5s  # Scrape mỗi 5 giây
+scrape_interval: 5s # Scrape mỗi 5 giây
 scrape_configs:
-  - job_name: 'pushgateway'
+  - job_name: "pushgateway"
     honor_labels: true
     static_configs:
-      - targets: ['pushgateway:9091']
+      - targets: ["pushgateway:9091"]
 ```
 
 ### Consumer Configuration
 
-File: `src/consumer_prometheus.py`
+File: `src/consumer.py`
 
 ```python
 KAFKA_BROKER = "localhost:29092"
 PUSHGATEWAY_URL = "localhost:9091"
 CONSUMER_GROUP = "hydraulic-prometheus-group"
+```
+
+**Usage:**
+
+```bash
+python consumer.py prometheus  # For Prometheus
+python consumer.py mongodb     # For MongoDB (if needed)
 ```
 
 **Push interval:** Mỗi 2 giây
@@ -251,7 +269,7 @@ curl 'http://localhost:9090/api/v1/query?query=hydraulic_messages_total'
 cat consumer_prom.log | tail -50
 
 # Restart consumer
-pkill -f consumer_prometheus
+pkill -f "consumer.py prometheus"
 cd src && python consumer.py prometheus &
 ```
 
@@ -284,7 +302,7 @@ docker-compose -f docker-compose.khang.yml down -v
 ### Kill Consumer Process
 
 ```bash
-pkill -f consumer_prometheus
+pkill -f "consumer.py prometheus"
 ```
 
 ---
@@ -303,7 +321,7 @@ In `docker-compose.khang.yml`:
 
 ```yaml
 environment:
-  KAFKA_HEAP_OPTS: "-Xmx1G -Xms1G"  # Increase if needed
+  KAFKA_HEAP_OPTS: "-Xmx1G -Xms1G" # Increase if needed
 ```
 
 ### 3. Reduce Grafana Refresh Rate
@@ -332,5 +350,3 @@ Slower: 10 seconds (less resource usage)
 ---
 
 Happy monitoring! 🚀
-
-

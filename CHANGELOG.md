@@ -5,11 +5,13 @@
 ### 🎯 Changes
 
 #### ✅ Migrated from MongoDB to Prometheus
+
 - Replaced MongoDB + Grafana Enterprise Plugin
 - Implemented Prometheus + Pushgateway + Grafana (free stack)
 - Native Grafana integration - no plugins needed
 
 #### 🗂️ Project Structure Reorganization
+
 ```
 Before:                          After:
 .                                .
@@ -29,7 +31,9 @@ Before:                          After:
 ```
 
 #### 🗑️ Removed Files
+
 **Test/Demo scripts (không cần thiết):**
+
 - `fix_dashboard_proper.py`
 - `fix_grafana_simple.py`
 - `create_simple_dashboard.py`
@@ -40,12 +44,14 @@ Before:                          After:
 - `setup_grafana.py`
 
 **Deprecated code:**
+
 - `grafana_api.py` (Flask API - không cần với Prometheus)
 - `grafana_json_dashboard.py` (Infinity plugin - không cần)
 - `dashboard_import.json`
 - `producer.py` (old version)
 
 **Old docs:**
+
 - `GRAFANA_FIX.md`
 - `RUN_SIMPLE.md`
 - `SETUP_GUIDE.md`
@@ -54,6 +60,7 @@ Before:                          After:
 - `REALTIME_GUIDE.md`
 
 **Config files:**
+
 - `config/batch/` (not used)
 - `config/spark/` (not used)
 - `docker-compose.yml` (using docker-compose.khang.yml)
@@ -63,24 +70,29 @@ Before:                          After:
 - `requirements.prometheus.txt`
 
 **Log files:**
+
 - `api.log`
 - `consumer.log`
 - `consumer_prom.log`
 
 #### 📝 New Documentation
+
 **README.md** - Main entry point
+
 - Quick start guide
 - Project overview
 - Common commands
 - 1 page, easy to read
 
 **docs/SETUP.md** - Detailed setup
+
 - Prerequisites
 - Step-by-step installation
 - Configuration
 - Troubleshooting
 
 **docs/ARCHITECTURE.md** - System design
+
 - Component explanation
 - Data flow
 - Design decisions
@@ -88,30 +100,37 @@ Before:                          After:
 - Scaling considerations
 
 #### 🔧 Updated Scripts
+
 **scripts/setup_prometheus.sh** - Full stack setup
+
 - Install dependencies
 - Start Docker services
 - Create Grafana dashboard
 - Health checks
 
 **scripts/quick_test.sh** - Fast test (1 cycle)
+
 - Start consumer
 - Run producer
 - ~60 seconds
 
 **scripts/demo_realtime.sh** - Continuous demo (10 cycles)
+
 - Real-time updates
 - ~10 minutes
 - Perfect for presentation
 
 #### 📦 Dependencies Consolidation
+
 **Before:** 4 requirements files
+
 - `requirements.txt`
 - `requirements.eda.txt`
 - `requirements.realtime.txt`
 - `requirements.prometheus.txt`
 
 **After:** 1 file
+
 - `requirements.txt` - All core deps
   - kafka-python-ng
   - prometheus-client
@@ -128,18 +147,19 @@ Before:                          After:
 
 ### 📊 Before vs After
 
-| Metric | Before | After |
-|--------|--------|-------|
-| README files | 6 | 3 (1 main + 2 docs) |
-| Python files in root | 15+ | 0 (moved to src/) |
-| Shell scripts in root | 3 | 0 (moved to scripts/) |
-| Requirements files | 4 | 1 |
-| Total files | 50+ | ~30 |
-| Documentation pages | 6 scattered | 3 organized |
+| Metric                | Before      | After                 |
+| --------------------- | ----------- | --------------------- |
+| README files          | 6           | 3 (1 main + 2 docs)   |
+| Python files in root  | 15+         | 0 (moved to src/)     |
+| Shell scripts in root | 3           | 0 (moved to scripts/) |
+| Requirements files    | 4           | 1                     |
+| Total files           | 50+         | ~30                   |
+| Documentation pages   | 6 scattered | 3 organized           |
 
 ### 🚀 Migration Path
 
 **Old workflow (MongoDB):**
+
 ```bash
 # Many manual steps
 docker-compose up -d mongo
@@ -150,6 +170,7 @@ python fix_grafana_simple.py  # Fix dashboard
 ```
 
 **New workflow (Prometheus):**
+
 ```bash
 # One command setup
 bash scripts/setup_prometheus.sh
@@ -165,13 +186,15 @@ bash scripts/quick_test.sh
 ## Future Roadmap
 
 ### Planned Features
+
 - [ ] Anomaly detection with ML model
 - [ ] Alerting with Prometheus Alertmanager
-- [ ] Spark Structured Streaming consumer
+- [x] Spark Structured Streaming consumer (✅ Implemented - see `src/spark_streaming_consumer.py` and `docs/SPARK_STREAMING.md`)
 - [ ] Multi-cycle analysis dashboard
 - [ ] Alert rules for sensor thresholds
 
 ### Possible Improvements
+
 - [ ] Add unit tests
 - [ ] CI/CD pipeline
 - [ ] Kubernetes deployment configs
@@ -183,5 +206,3 @@ bash scripts/quick_test.sh
 **Migration completed on:** 2025-11-08  
 **Breaking changes:** None (old files kept in git history)  
 **Recommended action:** Follow new README.md
-
-

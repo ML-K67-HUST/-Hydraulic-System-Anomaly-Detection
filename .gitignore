@@ -61,4 +61,7 @@ temp/
 *.tmp
 
 # Data files (too large for git)
-data/
+data/*.txt
+data/*.csv
+data/*.dat
+!data/README.md

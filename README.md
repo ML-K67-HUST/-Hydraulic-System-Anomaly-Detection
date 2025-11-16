@@ -54,8 +54,9 @@ Sensors (17) → Producer → Kafka → Consumer → Pushgateway → Prometheus 
 ```
 
 ### **17 Sensors:**
+
 - **PS1-6:** Pressure sensors (100Hz)
-- **EPS1:** Motor power (100Hz)  
+- **EPS1:** Motor power (100Hz)
 - **FS1-2:** Volume flow (10Hz)
 - **TS1-4:** Temperature (1Hz)
 - **CE, CP, SE, VS1:** Cooling/vibration (1Hz)
@@ -68,11 +69,15 @@ Sensors (17) → Producer → Kafka → Consumer → Pushgateway → Prometheus 
 ├── src/                          # Source code
 │   ├── producer.py               # Kafka producer (17 sensors)
 │   ├── consumer.py               # Consumers (Prometheus & MongoDB)
+│   ├── spark_streaming_consumer.py  # Spark Structured Streaming (simple)
+│   ├── streaming_job.py          # Spark Streaming Job (dual sink: HDFS + MongoDB)
 │   └── grafana_prometheus_dashboard.py  # Tạo dashboard
 ├── scripts/                      # Shell scripts
 │   ├── setup_prometheus.sh       # Setup toàn bộ stack
 │   ├── quick_test.sh            # Test nhanh 1 cycle
-│   └── demo_realtime.sh         # Demo liên tục
+│   ├── demo_realtime.sh         # Demo liên tục
+│   ├── submit_spark_streaming.sh  # Submit Spark job (optional)
+│   └── run_spark_streaming_local.sh  # Run Spark locally (optional)
 ├── config/                      # Configurations
 │   ├── kafka/                   # Kafka configs
 │   ├── spark/                   # Spark configs (optional)
@@ -90,7 +95,9 @@ Sensors (17) → Producer → Kafka → Consumer → Pushgateway → Prometheus 
 ├── prometheus.yml              # Prometheus config
 └── docs/                       # Documentation
     ├── SETUP.md               # Setup chi tiết
-    └── ARCHITECTURE.md        # Kiến trúc hệ thống
+    ├── ARCHITECTURE.md        # Kiến trúc hệ thống
+    ├── PRODUCER_USAGE.md      # Producer usage guide
+    └── SPARK_STREAMING.md     # Spark Streaming guide (optional)
 ```
 
 ---
@@ -98,11 +105,13 @@ Sensors (17) → Producer → Kafka → Consumer → Pushgateway → Prometheus 
 ## 🚀 Demo Scripts
 
 ### **Quick Test (1 cycle - 60s):**
+
 ```bash
 ./scripts/quick_test.sh
 ```
 
 ### **Continuous Demo (10 cycles - 10 phút):**
+
 ```bash
 ./scripts/demo_realtime.sh
 ```
@@ -111,13 +120,15 @@ Sensors (17) → Producer → Kafka → Consumer → Pushgateway → Prometheus 
 
 ## 🔧 Services & Ports
 
-| Service | Port | URL |
-|---------|------|-----|
-| Grafana | 3000 | http://localhost:3000 |
-| Prometheus | 9090 | http://localhost:9090 |
-| Pushgateway | 9091 | http://localhost:9091 |
-| Kafka | 9092, 29092 | localhost:29092 |
-| Zookeeper | 2181 | localhost:2181 |
+| Service      | Port        | URL                              |
+| ------------ | ----------- | -------------------------------- |
+| Grafana      | 3000        | http://localhost:3000            |
+| Prometheus   | 9090        | http://localhost:9090            |
+| Pushgateway  | 9091        | http://localhost:9091            |
+| Kafka        | 9092, 29092 | localhost:29092                  |
+| Zookeeper    | 2181        | localhost:2181                   |
+| Spark Master | 7077, 8080  | http://localhost:8080 (optional) |
+| MongoDB      | 27017       | localhost:27017 (optional)       |
 
 ---
 
@@ -126,6 +137,8 @@ Sensors (17) → Producer → Kafka → Consumer → Pushgateway → Prometheus 
 - **[SETUP.md](docs/SETUP.md)** - Hướng dẫn setup chi tiết
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Kiến trúc và design decisions
 - **[PRODUCER_USAGE.md](docs/PRODUCER_USAGE.md)** - Chi tiết cách dùng producer (single/range/all cycles)
+- **[SPARK_STREAMING.md](docs/SPARK_STREAMING.md)** - Spark Structured Streaming guide (simple version)
+- **[STREAMING_JOB_DEPLOYMENT.md](docs/STREAMING_JOB_DEPLOYMENT.md)** - Streaming Job deployment (dual sink: HDFS + MongoDB)
 
 ---
 
@@ -136,7 +149,7 @@ Sensors (17) → Producer → Kafka → Consumer → Pushgateway → Prometheus 
 ✅ **Beautiful dashboards** với Grafana  
 ✅ **17 sensors** với sampling rates chính xác  
 ✅ **Auto-refresh** dashboard mỗi 5 giây  
-✅ **No Enterprise license** - hoàn toàn FREE!  
+✅ **No Enterprise license** - hoàn toàn FREE!
 
 ---
 

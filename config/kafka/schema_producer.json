@@ -1,0 +1,35 @@
+{
+  "type": "struct",
+  "fields": [
+    {
+      "name": "sensor",
+      "type": "string",
+      "nullable": true
+    },
+    {
+      "name": "cycle",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "sample_idx",
+      "type": "integer",
+      "nullable": true
+    },
+    {
+      "name": "value",
+      "type": "double",
+      "nullable": true
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "nullable": true
+    },
+    {
+      "name": "sampling_rate_hz",
+      "type": "integer",
+      "nullable": true
+    }
+  ]
+}

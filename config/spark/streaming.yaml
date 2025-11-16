@@ -1,0 +1,58 @@
+# Cấu hình chung của Spark
+spark_app:
+  name: "HydraulicSystemStreaming"
+  master: "spark://spark-master:7077" # Hoặc "local[*]" để test
+  spark_ui_port: "4040" # Port cho Spark UI (tránh conflict)
+
+# Cấu hình nguồn Kafka (Input)
+kafka:
+  bootstrap_servers: "kafka:9092" # Từ Docker network
+  bootstrap_servers_host: "localhost:29092" # Từ host machine
+  subscribe_topic: "hydraulic_data" # Single topic hoặc có thể dùng pattern
+  # Nếu dùng nhiều topics như hiện tại, có thể dùng pattern: "hydraulic-*"
+  schema_path: "config/kafka/schema_producer.json" # Schema phù hợp với producer hiện tại
+  # Hoặc dùng: "config/kafka/schema.json" nếu có format khác
+  starting_offsets: "latest" # "earliest" hoặc "latest"
+
+# Cấu hình xử lý (Processing Logic)
+processing:
+  trigger_interval: "1 minute" # Tần suất kích hoạt micro-batch
+  checkpoint_location: "/tmp/spark-checkpoints/streaming_job" # Local path (hoặc hdfs://namenode:9000/spark/checkpoints/streaming_job nếu có HDFS)
+
+# Logic nghiệp vụ (Windowing & Watermarking)
+logic:
+  window_duration: "5 minutes"
+  slide_duration: "1 minute"
+  watermark_delay: "10 minutes"
+
+# Logic nghiệp vụ (Quy tắc phát hiện bất thường Giai đoạn 1)
+rules:
+  max_pressure: 3000 # bar
+  max_temperature: 120 # Celsius
+  min_cooler_efficiency: 0.5 # 50%
+  # Thêm các quy tắc khác nếu cần
+
+# Cấu hình Đích (Sinks)
+sinks:
+  # 1. Luồng Lạnh (HDFS) - Cho Batch và ML
+  cold_sink_hdfs:
+    enabled: true
+    path: "/tmp/data/processed/hydraulic_system" # Local path (hoặc hdfs://namenode:9000/data/processed/hydraulic_system nếu có HDFS)
+    format: "parquet"
+    partition_by: "processing_date" # Ví dụ
+    mode: "append"
+
+  # 2. Luồng Nóng (MongoDB) - Cho truy vấn nhanh
+  hot_sink_mongo:
+    enabled: true
+    uri: "mongodb://mongodb:27017/hydraulic_db"
+    uri_host: "mongodb://localhost:27017/hydraulic_db" # Từ host
+    database: "hydraulic_db"
+    collection_alerts: "alerts"
+    collection_metrics: "latest_metrics"
+
+# Cấu hình tích hợp ML (Giai đoạn 3)
+ml_integration:
+  enabled: false # Sẽ enable ở Phase 3
+  model_path: "hdfs://namenode:9000/models/hydraulic_anomaly_model"
+  # Local path: "/tmp/models/hydraulic_anomaly_model"
