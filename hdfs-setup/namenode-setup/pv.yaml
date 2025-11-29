@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: namenode-pv-node0
+spec:
+  # IMPORTANT: This StorageClass must be defined in your cluster
+  storageClassName: hdfs-name-storage
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  # --- Local Path Configuration ---
+  local:
+    # This path must exist on the HOST machine (if using Kind's extraMounts) 
+    # OR on the target Kind node's filesystem (if using Local Path Provisioner).
+    path: /mnt/infra-pv 
+  
+  # --- CRITICAL: Node Affinity Correction ---
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        # Use your custom label to target the Infra Master node
+        - key: role 
+          operator: In
+          values:
+          - infra-master

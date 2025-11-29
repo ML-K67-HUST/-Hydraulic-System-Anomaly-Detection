@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: hdfs-nodemanager
+spec:
+  selector:
+    matchLabels:
+      app: hdfs-nodemanager
+  template:
+    metadata:
+      labels:
+        app: hdfs-nodemanager
+    spec:
+      nodeSelector:
+        role: hdfs-worker
+      containers:
+      - name: hdfs-nodemanager
+        image: apache/hadoop:3.4.1
+        command:
+          - "/bin/bash"
+          - "-c"
+          - |
+            echo "export JAVA_HOME=/opt/java" >> /etc/hadoop/hadoop-env.sh
+            /opt/hadoop/bin/yarn --config /etc/hadoop nodemanager
+        resources:
+          requests:
+            cpu: "100m"  # 0.1 core guaranteed
+            memory: "512Mi" # 512 MiB guaranteed
+          limits:
+            cpu: "500m" # 0.5 core limit
+            memory: "1Gi" # 1 GiB limit
+        ports:
+        - containerPort: 8042
+          name: web
+        env:
+        - name: HADOOP_CONF_DIR
+          value: /etc/hadoop
+        - name: SPARK_CONF_DIR
+          value: /etc/spark
+        volumeMounts:
+        - name: hdfs-config-volume
+          mountPath: /etc/hadoop
+        - name: spark-config-volume
+          mountPath: /etc/spark
+        - name: nodemanager-data
+          mountPath: /tmp/hadoop-yarn
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8042
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8042
+          initialDelaySeconds: 60
+          periodSeconds: 30
+      volumes:
+      - name: hdfs-config-volume
+        configMap:
+          name: hdfs-config
+      - name: spark-config-volume
+        configMap:
+          name: spark-config
+      - name: nodemanager-data
+        hostPath:
+          path: /tmp/hadoop-yarn
+          type: DirectoryOrCreate

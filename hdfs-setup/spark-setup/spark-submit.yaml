@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: spark-submit-client
+  labels:
+    app: spark-client
+spec:
+  containers:
+  - name: submit-container
+    image: your-registry/spark-etl:latest # <--- REPLACE WITH YOUR IMAGE
+    # Use 'sleep infinity' to keep the pod running so you can exec into it
+    command: ["/bin/bash", "-c", "sleep infinity"] 
+    env:
+    # Set necessary HDFS config env var for the startup scripts
+    - name: HADOOP_CONF_DIR
+      value: /etc/hadoop
+    ports:
+    - containerPort: 4040 # Spark UI port
+    volumeMounts:
+    # 1. Mount HDFS/YARN config (Mandatory for all Hadoop components)
+    - name: hadoop-config-volume
+      mountPath: /etc/hadoop
+    # 2. Mount Spark defaults config (Mandatory for Shuffle Service)
+    - name: spark-config-volume
+      mountPath: /etc/spark/conf
+  volumes:
+  - name: hadoop-config-volume
+    configMap:
+      name: hdfs-config
+  - name: spark-config-volume
+    configMap:
+      name: spark-config

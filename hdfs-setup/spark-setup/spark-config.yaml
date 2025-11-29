@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spark-config
+  namespace: hdfs
+data:
+  spark-defaults.config:
+    spark.master=yarn
+    spark.hadoop.fs.defaultFS=hdfs://hdfs-namenode:9000
+    spark.dynamicAllocation.enabled=true
+    spark.dynamicAllocation.shuffleTracking.enabled=true
+    spark.eventLog.enabled=true
+    spark.eventLog.dir=hdfs://hdfs-namenode:9000/spark-history
+    spark.shuffle.service.enabled=true
+    spark.executor.instances=3

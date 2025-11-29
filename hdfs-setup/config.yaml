@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hdfs-config
+data:
+  core-site.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    <configuration>
+        <property>
+            <name>fs.defaultFS</name>
+            <value>hdfs://hdfs-namenode:9000</value>
+        </property>
+        <property>
+            <name>hadoop.http.staticuser.user</name>
+            <value>root</value>
+        </property>
+    </configuration>
+
+  hdfs-site.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    <configuration>
+        <property>
+            <name>dfs.replication</name>
+            <value>3</value>
+        </property>
+        <property>
+            <name>dfs.namenode.name.dir</name>
+            <value>file:///hadoop/dfs/name</value>
+        </property>
+        <property>
+            <name>dfs.datanode.data.dir</name>
+            <value>file:///hadoop/dfs/data</value>
+        </property>
+        <property>
+            <name>dfs.namenode.datanode.registration.ip-hostname-check</name>
+            <value>false</value>
+        </property>
+    </configuration>
+
+  yarn-site.xml: |
+    <?xml version="1.0"?>
+    <configuration>
+        <property>
+            <name>yarn.nodemanager.aux-services</name>
+            <value>mapreduce_shuffle,spark_shuffle</value>
+        </property>
+        <property>
+          <name>yarn.nodemanager.aux-services.spark_shuffle.class</name>
+          <value>org.apache.spark.deploy.yarn.service.TestShuffleService</value>
+        </property>
+        <property>
+            <name>yarn.resourcemanager.hostname</name>
+            <value>hdfs-resourcemanager</value>
+        </property>
+        <property>
+            <name>yarn.nodemanager.resource.memory-mb</name>
+            <value>6144</value>
+        </property>
+        <property>
+            <name>yarn.nodemanager.resource.cpu-vcores</name>
+            <value>3</value>
+        </property>
+        <property>
+            <name>yarn.scheduler.capacity.root.default.maximum-allocation-mb</name>
+            <value>3072</value>
+        </property>
+        <property>
+            <name>yarn.scheduler.capacity.root.default.maximum-allocation-vcores</name>
+            <value>2</value>
+        </property>
+    </configuration>
+
+  mapred-site.xml: |
+    <?xml version="1.0"?>
+    <configuration>
+        <property>
+            <name>mapreduce.framework.name</name>
+            <value>yarn</value>
+        </property>
+        <property>
+            <name>mapreduce.application.classpath</name>
+            <value>$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/*:$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/lib/*</value>
+        </property>
+        <property>
+            <name>mapred.child.java.opts</name>
+            <value>-Xmx1536m</value>
+        </property>
+        <property>
+            <name>mapreduce.map.memory.mb</name>
+            <value>1024</value>
+        </property>
+        <property>
+            <name>mapreduce.reduce.memory.mb</name>
+            <value>2048</value>
+        </property>
+        <property>
+            <name>mapreduce.map.java.opts</name>
+            <value>-Xmx768m</value>
+        </property>
+        <property>
+            <name>mapreduce.reduce.java.opts</name>
+            <value>-Xmx1536m</value>
+        </property>
+    </configuration>

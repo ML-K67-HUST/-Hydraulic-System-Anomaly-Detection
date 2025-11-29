@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hdfs-namenode-formatter
+  namespace: hdfs
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: formatter
+        image: apache/hadoop:3.4.1 # Must match your Pod's image
+        command: ["/bin/bash", "-c"]
+        args:
+          # CRITICAL: Run the format command with the config directory explicitly set
+          - /opt/hadoop/bin/hdfs --config /etc/hadoop namenode -format -force
+        volumeMounts:
+        - name: namenode-data
+          mountPath: /hadoop/dfs/name
+        # Also, must mount the config map volume for HDFS to find hdfs-site.xml
+        - name: hdfs-config-volume
+          mountPath: /etc/hadoop 
+      volumes:
+      - name: namenode-data
+        persistentVolumeClaim:
+          claimName: namenode-pvc-node0
+      # CRITICAL: Define the config map volume here
+      - name: hdfs-config-volume
+        configMap:
+          name: hdfs-config # Match the ConfigMap name used in your NameNode StatefulSet
