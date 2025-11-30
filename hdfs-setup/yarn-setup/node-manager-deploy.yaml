@@ -21,19 +21,21 @@ spec:
           - "/bin/bash"
           - "-c"
           - |
-            echo "export JAVA_HOME=/opt/java" >> /etc/hadoop/hadoop-env.sh
+            echo "Starting YARN NodeManager..."
             /opt/hadoop/bin/yarn --config /etc/hadoop nodemanager
         resources:
           requests:
-            cpu: "100m"  # 0.1 core guaranteed
-            memory: "512Mi" # 512 MiB guaranteed
+            cpu: "100m"
+            memory: "512Mi"
           limits:
-            cpu: "500m" # 0.5 core limit
-            memory: "1Gi" # 1 GiB limit
+            cpu: "500m"
+            memory: "1Gi"
         ports:
         - containerPort: 8042
           name: web
         env:
+        - name: JAVA_HOME
+          value: "/usr/lib/jvm/jre"
         - name: HADOOP_CONF_DIR
           value: /etc/hadoop
         - name: SPARK_CONF_DIR

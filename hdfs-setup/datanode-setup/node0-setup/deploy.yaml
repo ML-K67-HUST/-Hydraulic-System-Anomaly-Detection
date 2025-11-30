@@ -24,21 +24,23 @@ spec:
           - "-c"
           - |
             mkdir -p /hadoop/dfs/data
-            echo "export JAVA_HOME=/opt/java" >> /etc/hadoop/hadoop-env.sh
+            echo "Starting HDFS DataNode..."
             /opt/hadoop/bin/hdfs --config /etc/hadoop datanode
         resources:
           requests:
-            cpu: "500m"  # 0.5 core guaranteed
-            memory: "2Gi" # 2 GiB guaranteed
+            cpu: "500m"
+            memory: "2Gi"
           limits:
-            cpu: "1000m" # 1 core limit
-            memory: "3Gi" # 3 GiB limit   
+            cpu: "1000m"
+            memory: "3Gi"   
         ports:
         - containerPort: 9864
           name: web
         - containerPort: 9866
           name: data
         env:
+        - name: JAVA_HOME
+          value: "/usr/lib/jvm/jre"
         - name: HADOOP_CONF_DIR
           value: /etc/hadoop
         volumeMounts:

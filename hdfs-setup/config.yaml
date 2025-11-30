@@ -38,48 +38,85 @@ data:
             <name>dfs.namenode.datanode.registration.ip-hostname-check</name>
             <value>false</value>
         </property>
+        
+        <!-- CRITICAL FIX: Bind RPC server to all interfaces -->
+        <property>
+            <name>dfs.namenode.rpc-bind-host</name>
+            <value>0.0.0.0</value>
+            <description>Bind NameNode RPC server to all network interfaces</description>
+        </property>
+        
+        <!-- CRITICAL FIX: Bind HTTP server to all interfaces -->
+        <property>
+            <name>dfs.namenode.http-bind-host</name>
+            <value>0.0.0.0</value>
+            <description>Bind NameNode HTTP server to all network interfaces</description>
+        </property>
+        
+        <!-- Service discovery hostname (what clients use) -->
+        <property>
+            <name>dfs.namenode.rpc-address</name>
+            <value>hdfs-namenode:9000</value>
+            <description>Advertised RPC address for clients</description>
+        </property>
     </configuration>
 
   yarn-site.xml: |
     <?xml version="1.0"?>
     <configuration>
-        <!-- ====== CRITICAL: Bind all RPC services to 0.0.0.0 ====== -->
-        
-        <!-- ResourceManager Web UI -->
-        <property>
-            <name>yarn.resourcemanager.webapp.address</name>
-            <value>0.0.0.0:8088</value>
-        </property>
-        
-        <!-- ResourceManager RPC (for clients) -->
-        <property>
-            <name>yarn.resourcemanager.address</name>
-            <value>0.0.0.0:8032</value>
-        </property>
-        
-        <!-- ResourceManager Scheduler RPC -->
-        <property>
-            <name>yarn.resourcemanager.scheduler.address</name>
-            <value>0.0.0.0:8030</value>
-        </property>
-        
-        <!-- ResourceManager Resource Tracker (for NodeManagers) -->
-        <property>
-            <name>yarn.resourcemanager.resource-tracker.address</name>
-            <value>0.0.0.0:8031</value>
-        </property>
-        
-        <!-- ResourceManager Admin RPC (THIS WAS MISSING!) -->
-        <property>
-            <name>yarn.resourcemanager.admin.address</name>
-            <value>0.0.0.0:8033</value>
-        </property>
-        
-        <!-- ====== Service Discovery Hostname ====== -->
+        <!-- ====== ResourceManager Hostname (CRITICAL - SHORT NAME ONLY) ====== -->
         <property>
             <name>yarn.resourcemanager.hostname</name>
             <value>hdfs-resourcemanager</value>
-            <description>Hostname for service discovery</description>
+            <description>Hostname for ResourceManager (SHORT NAME to avoid Hadoop RPC validation issues)</description>
+        </property>
+        
+        <!-- ====== Server Bind Addresses (Bind to all interfaces) ====== -->
+        
+        <!-- ResourceManager RPC (for clients) - BIND ADDRESS -->
+        <property>
+            <name>yarn.resourcemanager.bind-host</name>
+            <value>0.0.0.0</value>
+            <description>Bind all RM RPC services to all interfaces</description>
+        </property>
+        
+        <!-- ResourceManager Web UI - BIND ADDRESS -->
+        <property>
+            <name>yarn.resourcemanager.webapp.bind-host</name>
+            <value>0.0.0.0</value>
+            <description>Bind RM Web UI to all interfaces</description>
+        </property>
+        
+        <!-- ====== Client-Facing Addresses (Auto-derived from hostname) ====== -->
+        
+        <property>
+            <name>yarn.resourcemanager.address</name>
+            <value>${yarn.resourcemanager.hostname}:8032</value>
+            <description>ResourceManager RPC address for clients</description>
+        </property>
+        
+        <property>
+            <name>yarn.resourcemanager.scheduler.address</name>
+            <value>${yarn.resourcemanager.hostname}:8030</value>
+            <description>Scheduler RPC address</description>
+        </property>
+        
+        <property>
+            <name>yarn.resourcemanager.resource-tracker.address</name>
+            <value>${yarn.resourcemanager.hostname}:8031</value>
+            <description>Resource tracker address for NodeManagers</description>
+        </property>
+        
+        <property>
+            <name>yarn.resourcemanager.admin.address</name>
+            <value>${yarn.resourcemanager.hostname}:8033</value>
+            <description>Admin RPC address</description>
+        </property>
+        
+        <property>
+            <name>yarn.resourcemanager.webapp.address</name>
+            <value>${yarn.resourcemanager.hostname}:8088</value>
+            <description>Web UI address</description>
         </property>
         
         <!-- ====== NodeManager Configuration ====== -->
@@ -96,6 +133,12 @@ data:
         <property>
             <name>yarn.nodemanager.resource.cpu-vcores</name>
             <value>2</value>
+        </property>
+        
+        <property>
+            <name>yarn.nodemanager.bind-host</name>
+            <value>0.0.0.0</value>
+            <description>Bind NodeManager to all interfaces</description>
         </property>
         
         <!-- ====== Scheduler Configuration ====== -->

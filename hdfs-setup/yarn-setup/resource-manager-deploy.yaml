@@ -9,8 +9,19 @@ spec:
   ports:
   - port: 8032
     name: rpc
+    targetPort: 8032
+  - port: 8031
+    name: resource-tracker
+    targetPort: 8031
+  - port: 8030
+    name: scheduler
+    targetPort: 8030
   - port: 8088
     name: web
+    targetPort: 8088
+  - port: 8033
+    name: admin
+    targetPort: 8033
   clusterIP: None
   selector:
     app: hdfs-resourcemanager
@@ -37,23 +48,37 @@ spec:
         image: apache/hadoop:3.4.1
         resources:
           requests:
-            cpu: "500m"  # 0.5 core guaranteed
-            memory: "1536Mi" # 1.5 GiB guaranteed
+            cpu: "500m"
+            memory: "1536Mi"
           limits:
-            cpu: "1000m" # 1 core limit
-            memory: "2Gi" # 2 GiB limit
+            cpu: "1000m"
+            memory: "2Gi"
         command:
           - "/bin/bash"
           - "-c"
           - |
-            echo "export JAVA_HOME=/opt/java" >> /etc/hadoop/hadoop-env.sh
+            echo "Starting YARN ResourceManager..."
+            echo "Hostname: $(hostname)"
             /opt/hadoop/bin/yarn --config /etc/hadoop resourcemanager
         ports:
         - containerPort: 8032
           name: rpc
+          protocol: TCP
         - containerPort: 8088
           name: web
+          protocol: TCP
+        - containerPort: 8030
+          name: scheduler
+          protocol: TCP
+        - containerPort: 8031
+          name: tracker
+          protocol: TCP
+        - containerPort: 8033
+          name: admin
+          protocol: TCP
         env:
+        - name: JAVA_HOME
+          value: "/usr/lib/jvm/jre"
         - name: HADOOP_CONF_DIR
           value: /etc/hadoop
         - name: YARN_RESOURCEMANAGER_HEAPSIZE
@@ -65,14 +90,27 @@ spec:
           httpGet:
             path: /
             port: 8088
-          initialDelaySeconds: 30
+          initialDelaySeconds: 45
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         livenessProbe:
           httpGet:
             path: /
             port: 8088
-          initialDelaySeconds: 60
+          initialDelaySeconds: 90
           periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Add startup probe for slower initialization
+        startupProbe:
+          httpGet:
+            path: /
+            port: 8088
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30  # 300 seconds total
       volumes:
       - name: hdfs-config-volume
         configMap:
