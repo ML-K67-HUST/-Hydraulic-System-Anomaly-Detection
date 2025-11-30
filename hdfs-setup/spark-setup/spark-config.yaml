@@ -4,7 +4,7 @@ metadata:
   name: spark-config
   namespace: hdfs
 data:
-  spark-defaults.config:
+  spark-defaults.config:  |
     spark.master=yarn
     spark.hadoop.fs.defaultFS=hdfs://hdfs-namenode:9000
     spark.dynamicAllocation.enabled=true

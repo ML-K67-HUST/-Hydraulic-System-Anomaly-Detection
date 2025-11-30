@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mongodb
+  namespace: mongodb
   labels:
     app: mongodb
 spec:
@@ -15,8 +16,8 @@ spec:
       labels:
         app: mongodb
     spec:
-    nodeSelector:
-      role: mongodb
+      nodeSelector:
+        role: mongodb
       containers:
       - name: mongodb
         image: mongo:7.0

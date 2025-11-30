@@ -3,7 +3,7 @@ kind: PersistentVolume
 metadata:
   name: mongodb-pv
 spec:
-  storageClassName: mongodb-storageclass # Must match the SC defined above
+  storageClassName: mongodb-storage # Must match the SC defined above
   capacity:
     storage: 1Gi # Size of the local disk/partition
   accessModes:
