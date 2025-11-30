@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: kafka-headless # Used by the StatefulSet for stable networking (kafka-0.kafka-headless)
+  name: kafka-headless
   namespace: kafka
   labels:
     app: kafka
@@ -11,14 +11,15 @@ spec:
     name: k8s-internal
   - port: 9093
     name: controller
-  clusterIP: None # Makes the service 'headless'
+  clusterIP: None
   selector:
     app: kafka
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: kafka-service # Client access Service (e.g., Spark will connect to 'kafka-service:9092')
+  name: kafka-service
+  namespace: kafka
   labels:
     app: kafka
 spec:
@@ -34,11 +35,12 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: kafka
+  namespace: kafka
   labels:
     app: kafka
 spec:
-  serviceName: "kafka-headless" # Must match the headless service name
-  replicas: 1 # Single broker/controller node
+  serviceName: "kafka-headless"
+  replicas: 1
   selector:
     matchLabels:
       app: kafka
@@ -53,36 +55,57 @@ spec:
       - name: kafka
         image: confluentinc/cp-kafka:7.4.0
         ports:
-        - containerPort: 9092 # Internal Listener Port
-        - containerPort: 9093 # Controller Port
+        - containerPort: 9092
+        - containerPort: 9093
         
-        # Load all configuration from the ConfigMap
+        # Load base configuration from ConfigMap
         envFrom:
           - configMapRef:
               name: kafka-config
         
-        # Dynamically inject the pod name to construct the advertised listener FQDN
+        # Set KAFKA_ADVERTISED_LISTENERS with proper variable substitution
         env:
           - name: KAFKA_POD_NAME
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: KAFKA_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          # CRITICAL: Set advertised listeners using shell substitution
+          - name: KAFKA_ADVERTISED_LISTENERS
+            value: "K8S_INTERNAL://$(KAFKA_POD_NAME).kafka-headless.$(KAFKA_POD_NAMESPACE).svc.cluster.local:9092"
         
         volumeMounts:
         - name: kafka-data
           mountPath: /var/lib/kafka/data
         
-        # Health check using a simple Kafka command
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1000m"
+            memory: "2Gi"
+        
         livenessProbe:
-          exec:
-            command: ["kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
-          initialDelaySeconds: 30
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 45
           periodSeconds: 30
           timeoutSeconds: 10
           failureThreshold: 5
         
+        readinessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
       volumes:
-      # Use the PVC defined in kafka-pvc.yaml
       - name: kafka-data
         persistentVolumeClaim:
           claimName: kafka-pvc

@@ -1,0 +1,20 @@
+Deployment completed at: Sun Nov 30 03:10:00 PM +07 2025
+Cluster name: bigdata-cluster
+
+Components deployed:
+- HDFS NameNode: hdfs-namenode-0
+- HDFS DataNode: hdfs-datanode-0
+- YARN ResourceManager: hdfs-resourcemanager
+- YARN NodeManager: hdfs-nodemanager (DaemonSet)
+- MongoDB: mongodb
+- Kafka: kafka-0
+- Schema Registry: schema-registry
+
+Access the cluster:
+kubectl cluster-info --context kind-bigdata-cluster
+
+View all pods:
+kubectl get pods --all-namespaces
+
+Delete cluster:
+kind delete cluster --name bigdata-cluster

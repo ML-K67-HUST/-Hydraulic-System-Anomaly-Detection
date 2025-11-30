@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: hdfs-config
+  namespace: hdfs
 data:
   core-site.xml: |
     <?xml version="1.0" encoding="UTF-8"?>
@@ -23,7 +24,7 @@ data:
     <configuration>
         <property>
             <name>dfs.replication</name>
-            <value>3</value>
+            <value>1</value>
         </property>
         <property>
             <name>dfs.namenode.name.dir</name>
@@ -42,33 +43,80 @@ data:
   yarn-site.xml: |
     <?xml version="1.0"?>
     <configuration>
+        <!-- ====== CRITICAL: Bind all RPC services to 0.0.0.0 ====== -->
+        
+        <!-- ResourceManager Web UI -->
         <property>
-            <name>yarn.nodemanager.aux-services</name>
-            <value>mapreduce_shuffle,spark_shuffle</value>
+            <name>yarn.resourcemanager.webapp.address</name>
+            <value>0.0.0.0:8088</value>
         </property>
+        
+        <!-- ResourceManager RPC (for clients) -->
         <property>
-          <name>yarn.nodemanager.aux-services.spark_shuffle.class</name>
-          <value>org.apache.spark.deploy.yarn.service.TestShuffleService</value>
+            <name>yarn.resourcemanager.address</name>
+            <value>0.0.0.0:8032</value>
         </property>
+        
+        <!-- ResourceManager Scheduler RPC -->
+        <property>
+            <name>yarn.resourcemanager.scheduler.address</name>
+            <value>0.0.0.0:8030</value>
+        </property>
+        
+        <!-- ResourceManager Resource Tracker (for NodeManagers) -->
+        <property>
+            <name>yarn.resourcemanager.resource-tracker.address</name>
+            <value>0.0.0.0:8031</value>
+        </property>
+        
+        <!-- ResourceManager Admin RPC (THIS WAS MISSING!) -->
+        <property>
+            <name>yarn.resourcemanager.admin.address</name>
+            <value>0.0.0.0:8033</value>
+        </property>
+        
+        <!-- ====== Service Discovery Hostname ====== -->
         <property>
             <name>yarn.resourcemanager.hostname</name>
             <value>hdfs-resourcemanager</value>
+            <description>Hostname for service discovery</description>
         </property>
+        
+        <!-- ====== NodeManager Configuration ====== -->
+        <property>
+            <name>yarn.nodemanager.aux-services</name>
+            <value>mapreduce_shuffle</value>
+        </property>
+        
         <property>
             <name>yarn.nodemanager.resource.memory-mb</name>
-            <value>6144</value>
+            <value>4096</value>
         </property>
+        
         <property>
             <name>yarn.nodemanager.resource.cpu-vcores</name>
-            <value>3</value>
-        </property>
-        <property>
-            <name>yarn.scheduler.capacity.root.default.maximum-allocation-mb</name>
-            <value>3072</value>
-        </property>
-        <property>
-            <name>yarn.scheduler.capacity.root.default.maximum-allocation-vcores</name>
             <value>2</value>
+        </property>
+        
+        <!-- ====== Scheduler Configuration ====== -->
+        <property>
+            <name>yarn.scheduler.maximum-allocation-mb</name>
+            <value>4096</value>
+        </property>
+        
+        <property>
+            <name>yarn.scheduler.maximum-allocation-vcores</name>
+            <value>2</value>
+        </property>
+        
+        <property>
+            <name>yarn.scheduler.minimum-allocation-mb</name>
+            <value>512</value>
+        </property>
+        
+        <property>
+            <name>yarn.scheduler.minimum-allocation-vcores</name>
+            <value>1</value>
         </property>
     </configuration>
 
@@ -85,7 +133,7 @@ data:
         </property>
         <property>
             <name>mapred.child.java.opts</name>
-            <value>-Xmx1536m</value>
+            <value>-Xmx1024m</value>
         </property>
         <property>
             <name>mapreduce.map.memory.mb</name>
@@ -93,7 +141,7 @@ data:
         </property>
         <property>
             <name>mapreduce.reduce.memory.mb</name>
-            <value>2048</value>
+            <value>1024</value>
         </property>
         <property>
             <name>mapreduce.map.java.opts</name>
@@ -101,6 +149,84 @@ data:
         </property>
         <property>
             <name>mapreduce.reduce.java.opts</name>
-            <value>-Xmx1536m</value>
+            <value>-Xmx768m</value>
         </property>
+    </configuration>
+
+  capacity-scheduler.xml: |
+    <?xml version="1.0"?>
+    <configuration>
+      <!-- Root Queue Configuration -->
+      <property>
+        <name>yarn.scheduler.capacity.root.queues</name>
+        <value>default</value>
+        <description>The queues at the root level (root is the root queue).</description>
+      </property>
+
+      <!-- Default Queue Configuration -->
+      <property>
+        <name>yarn.scheduler.capacity.root.default.capacity</name>
+        <value>100</value>
+        <description>Default queue target capacity.</description>
+      </property>
+
+      <property>
+        <name>yarn.scheduler.capacity.root.default.maximum-capacity</name>
+        <value>100</value>
+        <description>Default queue maximum capacity.</description>
+      </property>
+
+      <property>
+        <name>yarn.scheduler.capacity.root.default.state</name>
+        <value>RUNNING</value>
+        <description>The state of the default queue. Can be RUNNING or STOPPED.</description>
+      </property>
+
+      <property>
+        <name>yarn.scheduler.capacity.root.default.acl_submit_applications</name>
+        <value>*</value>
+        <description>ACL for who can submit apps to default queue.</description>
+      </property>
+
+      <property>
+        <name>yarn.scheduler.capacity.root.default.acl_administer_queue</name>
+        <value>*</value>
+        <description>ACL for who can administer default queue.</description>
+      </property>
+
+      <property>
+        <name>yarn.scheduler.capacity.root.default.maximum-allocation-mb</name>
+        <value>4096</value>
+        <description>Maximum memory allocation for a single container.</description>
+      </property>
+
+      <property>
+        <name>yarn.scheduler.capacity.root.default.maximum-allocation-vcores</name>
+        <value>2</value>
+        <description>Maximum vcore allocation for a single container.</description>
+      </property>
+
+      <!-- Queue Mapping -->
+      <property>
+        <name>yarn.scheduler.capacity.queue-mappings</name>
+        <value></value>
+        <description>Queue mapping for users.</description>
+      </property>
+
+      <property>
+        <name>yarn.scheduler.capacity.queue-mappings-override.enable</name>
+        <value>false</value>
+        <description>Override user-specified queues.</description>
+      </property>
+
+      <!-- Node Labels (Optional) -->
+      <property>
+        <name>yarn.scheduler.capacity.root.accessible-node-labels</name>
+        <value>*</value>
+      </property>
+
+      <property>
+        <name>yarn.scheduler.capacity.root.default.accessible-node-labels</name>
+        <value>*</value>
+      </property>
     </configuration>
