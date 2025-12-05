@@ -6,12 +6,16 @@ metadata:
   labels:
     app: hdfs-namenode
 spec:
+  type: ClusterIP  # Changed from clusterIP: None
   ports:
   - port: 9000
     name: fs
+    targetPort: 9000
+    protocol: TCP
   - port: 9870
     name: web
-  clusterIP: None
+    targetPort: 9870
+    protocol: TCP
   selector:
     app: hdfs-namenode
 ---
@@ -19,6 +23,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: hdfs-namenode
+  namespace: hdfs
 spec:
   serviceName: hdfs-namenode
   replicas: 1
@@ -37,36 +42,49 @@ spec:
         image: apache/hadoop:3.4.1
         resources:
           requests:
-            cpu: "1000m"  # Request 1 full core (1000 millicores)
-            memory: "2Gi" # Request 2 Gigabytes of memory
+            cpu: "1000m"
+            memory: "2Gi"
           limits:
-            cpu: "2000m"  # Limit to 2 full cores
-            memory: "3Gi" # Limit to 3 Gigabytes of memory
+            cpu: "2000m"
+            memory: "3Gi"
         command:
           - "/bin/bash"
           - "-c"
           - |
             mkdir -p /hadoop/dfs/name
+            echo "Starting HDFS NameNode..."
             /opt/hadoop/bin/hdfs --config /etc/hadoop namenode
         ports:
         - containerPort: 9000
           name: fs
+          protocol: TCP
         - containerPort: 9870
           name: web
+          protocol: TCP
         volumeMounts:
         - name: hdfs-config-volume
           mountPath: /etc/hadoop
-        - name: namenode-data # Mount the persistent data directory
+        - name: namenode-data
           mountPath: /hadoop/dfs/name
         env:
         - name: HADOOP_MAPRED_HOME
           value: /opt/hadoop
         - name: HADOOP_CONF_DIR
           value: /etc/hadoop
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 9000
+          initialDelaySeconds: 60
+          periodSeconds: 30
       volumes:
       - name: hdfs-config-volume
         configMap:
-          name: hdfs-config # You must ensure this ConfigMap exists
+          name: hdfs-config
       - name: namenode-data
         persistentVolumeClaim:
-          claimName: namenode-pvc-node0 # Ensures persistence on Infra Master node
+          claimName: namenode-pvc-node0

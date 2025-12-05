@@ -6,6 +6,7 @@ metadata:
   labels:
     app: hdfs-resourcemanager
 spec:
+  type: ClusterIP  # Changed from None
   ports:
   - port: 8032
     name: rpc
@@ -22,7 +23,6 @@ spec:
   - port: 8033
     name: admin
     targetPort: 8033
-  clusterIP: None
   selector:
     app: hdfs-resourcemanager
 ---
@@ -102,7 +102,6 @@ spec:
           periodSeconds: 30
           timeoutSeconds: 5
           failureThreshold: 3
-        # Add startup probe for slower initialization
         startupProbe:
           httpGet:
             path: /
@@ -110,7 +109,7 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
-          failureThreshold: 30  # 300 seconds total
+          failureThreshold: 30
       volumes:
       - name: hdfs-config-volume
         configMap:

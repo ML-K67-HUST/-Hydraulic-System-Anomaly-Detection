@@ -21,6 +21,10 @@ spec:
           - "/bin/bash"
           - "-c"
           - |
+            # Clean up old data on startup
+            rm -rf /tmp/hadoop-yarn/nm-local-dir/*
+            rm -rf /var/log/hadoop/userlogs/*
+            
             echo "Starting YARN NodeManager..."
             /opt/hadoop/bin/yarn --config /etc/hadoop nodemanager
         resources:
@@ -45,8 +49,10 @@ spec:
           mountPath: /etc/hadoop
         - name: spark-config-volume
           mountPath: /etc/spark
-        - name: nodemanager-data
-          mountPath: /tmp/hadoop-yarn
+        - name: nodemanager-local-dir
+          mountPath: /tmp/hadoop-yarn/nm-local-dir
+        - name: nodemanager-log-dir
+          mountPath: /var/log/hadoop/userlogs
         readinessProbe:
           httpGet:
             path: /
@@ -66,7 +72,11 @@ spec:
       - name: spark-config-volume
         configMap:
           name: spark-config
-      - name: nodemanager-data
+      - name: nodemanager-local-dir
         hostPath:
-          path: /tmp/hadoop-yarn
+          path: /tmp/nodemanager-local
+          type: DirectoryOrCreate
+      - name: nodemanager-log-dir
+        hostPath:
+          path: /tmp/nodemanager-logs
           type: DirectoryOrCreate
