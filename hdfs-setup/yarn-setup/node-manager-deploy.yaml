@@ -12,8 +12,21 @@ spec:
       labels:
         app: hdfs-nodemanager
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         role: hdfs-worker
+      initContainers:
+      - name: fix-permissions
+        image: apache/hadoop:3.4.1
+        command: ["sh", "-c", "chown -R 1000:100 /tmp/hadoop-yarn/nm-local-dir /var/log/hadoop/userlogs && chmod -R 775 /tmp/hadoop-yarn/nm-local-dir /var/log/hadoop/userlogs"]
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: nodemanager-local-dir
+          mountPath: /tmp/hadoop-yarn/nm-local-dir
+        - name: nodemanager-log-dir
+          mountPath: /var/log/hadoop/userlogs
       containers:
       - name: hdfs-nodemanager
         image: apache/hadoop:3.4.1
@@ -21,23 +34,23 @@ spec:
           - "/bin/bash"
           - "-c"
           - |
-            # Clean up old data on startup
-            rm -rf /tmp/hadoop-yarn/nm-local-dir/*
-            rm -rf /var/log/hadoop/userlogs/*
-            
             echo "Starting YARN NodeManager..."
             /opt/hadoop/bin/yarn --config /etc/hadoop nodemanager
         resources:
           requests:
-            cpu: "100m"
-            memory: "512Mi"
+            cpu: "800m"
+            memory: "2560Mi"  # 2.5Gi
           limits:
-            cpu: "500m"
-            memory: "1Gi"
+            cpu: "3000m"
+            memory: "4Gi"
         ports:
         - containerPort: 8042
           name: web
         env:
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         - name: JAVA_HOME
           value: "/usr/lib/jvm/jre"
         - name: HADOOP_CONF_DIR
@@ -80,3 +93,18 @@ spec:
         hostPath:
           path: /tmp/nodemanager-logs
           type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hdfs-nodemanager
+  namespace: hdfs
+  labels:
+    app: hdfs-nodemanager
+spec:
+  clusterIP: None
+  selector:
+    app: hdfs-nodemanager
+  ports:
+  - port: 8042
+    name: web

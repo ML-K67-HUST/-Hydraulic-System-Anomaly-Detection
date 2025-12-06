@@ -76,6 +76,9 @@ spec:
           # CRITICAL: Set advertised listeners using shell substitution
           - name: KAFKA_ADVERTISED_LISTENERS
             value: "K8S_INTERNAL://$(KAFKA_POD_NAME).kafka-headless.$(KAFKA_POD_NAMESPACE).svc.cluster.local:9092"
+          # Limit JVM heap for local machine
+          - name: KAFKA_HEAP_OPTS
+            value: "-Xmx512M -Xms512M"
         
         volumeMounts:
         - name: kafka-data
@@ -83,10 +86,10 @@ spec:
         
         resources:
           requests:
-            cpu: "500m"
-            memory: "1Gi"
+            cpu: "400m"
+            memory: "800Mi"
           limits:
-            cpu: "1000m"
+            cpu: "1500m"
             memory: "2Gi"
         
         livenessProbe:

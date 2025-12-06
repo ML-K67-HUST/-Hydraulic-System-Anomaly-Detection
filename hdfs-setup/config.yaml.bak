@@ -10,7 +10,7 @@ data:
     <configuration>
         <property>
             <name>fs.defaultFS</name>
-            <value>hdfs://hdfs-namenode-0.hdfs-namenode.hdfs.svc.cluster.local:9000</value>
+            <value>hdfs://hdfs-namenode:9000</value>
         </property>
         <property>
             <name>hadoop.http.staticuser.user</name>
@@ -46,16 +46,6 @@ data:
             <description>Bind NameNode RPC server to all network interfaces</description>
         </property>
         
-        <property>
-            <name>dfs.datanode.du.reserved</name>
-            <value>104857600</value> <!-- 100MB -->
-        </property>
-
-        <property>
-            <name>dfs.datanode.round-robin-volume-choosing-policy.additional-available-space</name>
-            <value>0</value>
-        </property>
-        
         <!-- CRITICAL FIX: Bind HTTP server to all interfaces -->
         <property>
             <name>dfs.namenode.http-bind-host</name>
@@ -66,7 +56,7 @@ data:
         <!-- Service discovery hostname (what clients use) -->
         <property>
             <name>dfs.namenode.rpc-address</name>
-            <value>hdfs-namenode-0.hdfs-namenode.hdfs.svc.cluster.local:9000</value>
+            <value>hdfs-namenode:9000</value>
             <description>Advertised RPC address for clients</description>
         </property>
     </configuration>
@@ -77,7 +67,7 @@ data:
         <!-- ====== ResourceManager Hostname (CRITICAL - SHORT NAME ONLY) ====== -->
         <property>
             <name>yarn.resourcemanager.hostname</name>
-            <value>hdfs-resourcemanager.hdfs.svc.cluster.local</value>
+            <value>hdfs-resourcemanager</value>
             <description>Hostname for ResourceManager (SHORT NAME to avoid Hadoop RPC validation issues)</description>
         </property>
         
@@ -142,8 +132,7 @@ data:
         
         <property>
             <name>yarn.nodemanager.resource.cpu-vcores</name>
-            <value>3</value>
-            <description>3 vCores for YARN containers (local machine)</description>
+            <value>2</value>
         </property>
         
         <property>
@@ -151,39 +140,16 @@ data:
             <value>0.0.0.0</value>
             <description>Bind NodeManager to all interfaces</description>
         </property>
-
-        <property>
-            <name>yarn.nodemanager.address</name>
-            <value>0.0.0.0:8041</value>
-            <description>NodeManager RPC address with fixed port</description>
-        </property>
-        
-        <property>
-            <name>yarn.nodemanager.local-dirs</name>
-            <value>/tmp/hadoop-yarn/nm-local-dir</value>
-        </property>
-        
-        <property>
-            <name>yarn.nodemanager.log-dirs</name>
-            <value>/var/log/hadoop/userlogs</value>
-        </property>
-
-        <property>
-            <name>yarn.nodemanager.disk-health-checker.max-disk-utilization-percents</name>
-            <value>98.0</value>
-        </property>
         
         <!-- ====== Scheduler Configuration ====== -->
         <property>
             <name>yarn.scheduler.maximum-allocation-mb</name>
-            <value>3072</value>
-            <description>Max 3GB per container (local machine)</description>
+            <value>4096</value>
         </property>
         
         <property>
             <name>yarn.scheduler.maximum-allocation-vcores</name>
             <value>2</value>
-            <description>Max 2 vCores per container (local machine)</description>
         </property>
         
         <property>
@@ -234,12 +200,6 @@ data:
     <?xml version="1.0"?>
     <configuration>
       <!-- Root Queue Configuration -->
-      <property>
-        <name>yarn.scheduler.capacity.maximum-am-resource-percent</name>
-        <value>0.8</value>
-        <description>Maximum percent of resources in the cluster which can be used to run application masters.</description>
-      </property>
-
       <property>
         <name>yarn.scheduler.capacity.root.queues</name>
         <value>default</value>

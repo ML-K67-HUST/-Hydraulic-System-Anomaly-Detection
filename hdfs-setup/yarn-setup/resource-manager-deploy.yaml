@@ -6,23 +6,30 @@ metadata:
   labels:
     app: hdfs-resourcemanager
 spec:
-  type: ClusterIP  # Changed from None
+  type: ClusterIP
+  # Ensure service endpoints are published even if pods aren't ready
+  publishNotReadyAddresses: true
   ports:
   - port: 8032
     name: rpc
     targetPort: 8032
+    protocol: TCP
   - port: 8031
     name: resource-tracker
     targetPort: 8031
+    protocol: TCP
   - port: 8030
     name: scheduler
     targetPort: 8030
+    protocol: TCP
   - port: 8088
     name: web
     targetPort: 8088
+    protocol: TCP
   - port: 8033
     name: admin
     targetPort: 8033
+    protocol: TCP
   selector:
     app: hdfs-resourcemanager
 ---
@@ -48,17 +55,28 @@ spec:
         image: apache/hadoop:3.4.1
         resources:
           requests:
-            cpu: "500m"
-            memory: "1536Mi"
+            cpu: "400m"
+            memory: "800Mi"
           limits:
             cpu: "1000m"
-            memory: "2Gi"
+            memory: "1536Mi"  # 1.5Gi
         command:
           - "/bin/bash"
           - "-c"
           - |
+            # Wait for network and DNS to be ready
+            echo "Waiting for network initialization..."
+            sleep 15
+            
             echo "Starting YARN ResourceManager..."
             echo "Hostname: $(hostname)"
+            echo "FQDN: $(hostname -f)"
+            echo "IP Address: $(hostname -i)"
+            
+            # Verify configuration
+            echo "Checking yarn-site.xml:"
+            grep -A 1 "yarn.resourcemanager.hostname" /etc/hadoop/yarn-site.xml
+            
             /opt/hadoop/bin/yarn --config /etc/hadoop resourcemanager
         ports:
         - containerPort: 8032
@@ -87,25 +105,23 @@ spec:
         - name: hdfs-config-volume
           mountPath: /etc/hadoop
         readinessProbe:
-          httpGet:
-            path: /
-            port: 8088
-          initialDelaySeconds: 45
+          tcpSocket:
+            port: 8031
+          initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
-          failureThreshold: 3
+          failureThreshold: 6
         livenessProbe:
           httpGet:
             path: /
             port: 8088
-          initialDelaySeconds: 90
+          initialDelaySeconds: 120
           periodSeconds: 30
           timeoutSeconds: 5
           failureThreshold: 3
         startupProbe:
-          httpGet:
-            path: /
-            port: 8088
+          tcpSocket:
+            port: 8031
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5

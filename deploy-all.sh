@@ -21,7 +21,7 @@ NC='\033[0m' # No Color
 #==============================================================================
 
 CLUSTER_NAME="bigdata-cluster"
-BASE_DATA_DIR="/home/phamvanvuhoan/kind-data"
+BASE_DATA_DIR="$HOME/kind-data"  # Dynamic path using $HOME
 
 #==============================================================================
 # Helper Functions
@@ -125,8 +125,10 @@ if ! docker info &> /dev/null; then
 fi
 print_success "Docker daemon is running"
 
-# Check and create directories
-print_step "Checking/creating data directories..."
+# Check and create directories for local PVs
+print_step "Checking/creating data directories for local PVs..."
+print_info "Base directory: $BASE_DATA_DIR"
+
 REQUIRED_DIRS=(
     "$BASE_DATA_DIR/k8s-master-data"
     "$BASE_DATA_DIR/hdfs-worker-data"
@@ -134,16 +136,27 @@ REQUIRED_DIRS=(
     "$BASE_DATA_DIR/kafka-broker-data"
 )
 
+CREATED_COUNT=0
+EXISTED_COUNT=0
+
 for dir in "${REQUIRED_DIRS[@]}"; do
     if [ ! -d "$dir" ]; then
         print_warn "Directory $dir does not exist. Creating..."
         mkdir -p "$dir"
-        chmod 777 "$dir"
-        print_success "Created $dir"
+        chmod 777 "$dir"  # Allow Kind containers to write
+        CREATED_COUNT=$((CREATED_COUNT + 1))
+        print_success "Created $dir with permissions 777"
     else
-        print_success "$dir exists"
+        # Ensure permissions are correct even if directory exists
+        chmod 777 "$dir"
+        EXISTED_COUNT=$((EXISTED_COUNT + 1))
+        print_success "$dir already exists (permissions updated to 777)"
     fi
 done
+
+print_info "Summary: Created $CREATED_COUNT directories, $EXISTED_COUNT already existed"
+print_success "All required directories are ready for Kind cluster"
+
 
 # Check if configuration files exist
 print_step "Checking configuration files..."
@@ -169,6 +182,18 @@ print_success "All configuration files present"
 #==============================================================================
 
 print_header "STEP 1: KUBERNETES CLUSTER SETUP"
+
+# Generate cluster-config.yaml from template
+print_step "Generating cluster configuration..."
+if [ ! -f "cluster-config.yaml.template" ]; then
+    print_error "cluster-config.yaml.template not found!"
+    exit 1
+fi
+
+# Replace KIND_DATA_DIR with actual BASE_DATA_DIR
+sed "s|KIND_DATA_DIR|$BASE_DATA_DIR|g" cluster-config.yaml.template > cluster-config.yaml
+print_success "Generated cluster-config.yaml with paths:"
+print_info "  Base directory: $BASE_DATA_DIR"
 
 if kind get clusters 2>/dev/null | grep -q "$CLUSTER_NAME"; then
     print_warn "Cluster '$CLUSTER_NAME' already exists"

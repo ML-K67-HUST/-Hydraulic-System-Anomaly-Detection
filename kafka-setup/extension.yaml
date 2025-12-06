@@ -18,6 +18,13 @@ spec:
       containers:
       - name: schema-registry
         image: confluentinc/cp-schema-registry:7.4.0
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
         ports:
         - containerPort: 8081
         env:
@@ -25,13 +32,52 @@ spec:
             value: schema-registry-service
           # Connects to the stable Kafka ClusterIP Service
           - name: SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS
-            value: kafka-service:9092 
+            value: kafka-service:9092
           - name: SCHEMA_REGISTRY_LISTENERS
             value: http://0.0.0.0:8081
-        resources:
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+          # JVM heap settings for low memory
+          - name: SCHEMA_REGISTRY_HEAP_OPTS
+            value: "-Xms128M -Xmx384M"
+          # Kafka connection timeouts (prevent session timeouts)
+          - name: SCHEMA_REGISTRY_KAFKASTORE_TIMEOUT_MS
+            value: "10000"
+          - name: SCHEMA_REGISTRY_KAFKASTORE_INIT_TIMEOUT_MS
+            value: "60000"
+          # Leader election settings (KRaft mode - no Zookeeper!)
+          - name: SCHEMA_REGISTRY_LEADER_ELIGIBILITY
+            value: "true"
+          # Session timeout (prevent coordinator issues)  
+          - name: SCHEMA_REGISTRY_KAFKASTORE_SESSION_TIMEOUT_MS
+            value: "30000"
+          - name: SCHEMA_REGISTRY_KAFKASTORE_HEARTBEAT_INTERVAL_MS
+            value: "10000"
+          # Schema Registry group ID
+          - name: SCHEMA_REGISTRY_SCHEMA_REGISTRY_GROUP_ID
+            value: "schema-registry"
+          # Topic configuration
+          - name: SCHEMA_REGISTRY_KAFKASTORE_TOPIC
+            value: "_schemas"
+          - name: SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR
+            value: "1"
+          # Debug mode
+          - name: SCHEMA_REGISTRY_DEBUG
+            value: "false"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service

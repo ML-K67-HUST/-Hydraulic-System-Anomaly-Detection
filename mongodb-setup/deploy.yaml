@@ -40,6 +40,13 @@ spec:
               secretKeyRef:
                 name: mongodb-secret
                 key: MONGO_INITDB_DATABASE
+        resources:
+          requests:
+            cpu: "400m"
+            memory: "800Mi"
+          limits:
+            cpu: "1500m"
+            memory: "2Gi"
         # Mount the PVC to the MongoDB data directory
         volumeMounts:
         - name: mongodb-storage

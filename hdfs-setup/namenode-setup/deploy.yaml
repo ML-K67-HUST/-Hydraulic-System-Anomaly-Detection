@@ -6,7 +6,8 @@ metadata:
   labels:
     app: hdfs-namenode
 spec:
-  type: ClusterIP  # Changed from clusterIP: None
+  # Use headless service for StatefulSet
+  clusterIP: None
   ports:
   - port: 9000
     name: fs
@@ -18,6 +19,8 @@ spec:
     protocol: TCP
   selector:
     app: hdfs-namenode
+  # Add this to ensure service endpoints are published immediately
+  publishNotReadyAddresses: true
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -35,6 +38,9 @@ spec:
       labels:
         app: hdfs-namenode
     spec:
+      # Add hostname for predictable DNS
+      hostname: hdfs-namenode-0
+      subdomain: hdfs-namenode
       nodeSelector:
         role: infra-master
       containers:
@@ -42,17 +48,25 @@ spec:
         image: apache/hadoop:3.4.1
         resources:
           requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
             cpu: "1000m"
             memory: "2Gi"
-          limits:
-            cpu: "2000m"
-            memory: "3Gi"
         command:
           - "/bin/bash"
           - "-c"
           - |
             mkdir -p /hadoop/dfs/name
+            
+            # Wait for network to be ready
+            echo "Waiting for network initialization..."
+            sleep 10
+            
             echo "Starting HDFS NameNode..."
+            echo "Hostname: $(hostname -f)"
+            echo "IP Address: $(hostname -i)"
+            
             /opt/hadoop/bin/hdfs --config /etc/hadoop namenode
         ports:
         - containerPort: 9000
@@ -74,13 +88,17 @@ spec:
         readinessProbe:
           tcpSocket:
             port: 9000
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
         livenessProbe:
           tcpSocket:
             port: 9000
-          initialDelaySeconds: 60
+          initialDelaySeconds: 120
           periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
       volumes:
       - name: hdfs-config-volume
         configMap:

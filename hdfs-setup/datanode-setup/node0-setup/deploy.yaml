@@ -28,11 +28,11 @@ spec:
             /opt/hadoop/bin/hdfs --config /etc/hadoop datanode
         resources:
           requests:
-            cpu: "500m"
-            memory: "2Gi"
+            cpu: "300m"
+            memory: "512Mi"
           limits:
-            cpu: "1000m"
-            memory: "3Gi"   
+            cpu: "800m"
+            memory: "1Gi"
         ports:
         - containerPort: 9864
           name: web

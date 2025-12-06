@@ -7,7 +7,14 @@ metadata:
 spec:
   containers:
   - name: submit-container
-    image: your-registry/spark-etl:latest # <--- REPLACE WITH YOUR IMAGE
+    image: apache/spark:3.5.0 # <--- REPLACE WITH YOUR IMAGE
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "384Mi"
+      limits:
+        cpu: "500m"
+        memory: "768Mi"
     # Use 'sleep infinity' to keep the pod running so you can exec into it
     command: ["/bin/bash", "-c", "sleep infinity"] 
     env:
