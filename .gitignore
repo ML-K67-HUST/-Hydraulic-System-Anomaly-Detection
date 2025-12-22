@@ -63,3 +63,5 @@ temp/
 # Data files (too large for git)
 data/
 deploy
+checkpoints
+venv
