@@ -6,9 +6,10 @@ Create Kafka topics for 17 hydraulic sensors
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
 import time
+import socket
 
 # Kafka broker
-KAFKA_BROKER = "localhost:29092"
+KAFKA_BROKER = "localhost:9092"
 
 # 17 sensors với sampling rates
 SENSORS = {

@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 from abc import ABC, abstractmethod
 import threading
-import socket
+import sys  # Added missing import
 
 # Monkey patch selectors to suppress "Invalid file descriptor" error (common in kafka-python)
 import selectors
@@ -33,16 +33,16 @@ from kafka import KafkaConsumer
 # Kafka configuration
 KAFKA_BROKER = "localhost:9092"
 CONSUMER_GROUP_PREFIX = "hydraulic"
+PROMETHEUS_JOB_NAME = "hydraulic_raw"  # Unique job for this consumer
 
-# Sensor topics
+# Raw Sensor topics Only
 SENSOR_TOPICS = [
     "hydraulic-PS1", "hydraulic-PS2", "hydraulic-PS3", 
     "hydraulic-PS4", "hydraulic-PS5", "hydraulic-PS6",
     "hydraulic-EPS1",
     "hydraulic-FS1", "hydraulic-FS2",
     "hydraulic-TS1", "hydraulic-TS2", "hydraulic-TS3", "hydraulic-TS4",
-    "hydraulic-CE", "hydraulic-CP", "hydraulic-SE", "hydraulic-VS1",
-    "hydraulic-analytics"  # Processed data from Spark
+    "hydraulic-CE", "hydraulic-CP", "hydraulic-SE", "hydraulic-VS1"
 ]
 
 
@@ -67,7 +67,7 @@ class BaseConsumer(ABC):
                     auto_offset_reset='latest',
                     enable_auto_commit=True,
                     auto_commit_interval_ms=1000,
-                    consumer_timeout_ms=5000,
+                    # consumer_timeout_ms=float('inf'),
                     request_timeout_ms=30000,
                     api_version_auto_timeout_ms=5000
                 )
@@ -129,7 +129,7 @@ class BaseConsumer(ABC):
 
 class PrometheusConsumer(BaseConsumer):
     def __init__(self, pushgateway_url: str = "localhost:9091"):
-        super().__init__("prometheus-group")
+        super().__init__("prometheus-raw")
         self.pushgateway_url = pushgateway_url
         self.push_interval = 2  # seconds
         self.last_push_time = None
@@ -146,9 +146,9 @@ class PrometheusConsumer(BaseConsumer):
             sensor_name = topic.replace("hydraulic-", "")
             
             self.sensor_values[sensor_name] = Gauge(
-                f'hydraulic_{sensor_name.lower()}_value',
+                f'hydraulic_raw_{sensor_name.lower()}', # Renamed to force fresh series
                 f'{sensor_name} sensor reading',
-                ['sensor', 'cycle'],
+                ['sensor'], 
                 registry=self.registry
             )
             
@@ -174,23 +174,14 @@ class PrometheusConsumer(BaseConsumer):
             registry=self.registry
         )
         
-        # Aggregated metrics (from Spark)
-        self.sensor_avg = Gauge(
-            'hydraulic_sensor_avg_1m', '1-minute moving average', ['sensor'], registry=self.registry
-        )
-        self.sensor_max = Gauge(
-            'hydraulic_sensor_max_1m', '1-minute max value', ['sensor'], registry=self.registry
-        )
-        self.sensor_min = Gauge(
-            'hydraulic_sensor_min_1m', '1-minute min value', ['sensor'], registry=self.registry
-        )
     
     def on_start(self):
         print("=" * 80)
-        print("🚀 Prometheus Consumer")
+        print("🚀 Prometheus Consumer (RAW DATA)")
         print("=" * 80)
         print(f"Kafka Broker: {KAFKA_BROKER}")
         print(f"Pushgateway: {self.pushgateway_url}")
+        print(f"Job Name: {PROMETHEUS_JOB_NAME}")
         print(f"Topics: {len(SENSOR_TOPICS)} sensors")
         print("=" * 80)
         self.last_push_time = time.time()
@@ -199,7 +190,7 @@ class PrometheusConsumer(BaseConsumer):
         try:
             self.push_to_gateway(
                 self.pushgateway_url,
-                job='hydraulic_system',
+                job=PROMETHEUS_JOB_NAME,
                 registry=self.registry
             )
         except Exception as e:
@@ -208,35 +199,25 @@ class PrometheusConsumer(BaseConsumer):
     def process_message(self, message):
         data = message.value
         sensor = data.get('sensor')
-        
-        # 1. Handle Aggregated Data (from Spark)
-        if 'avg_value' in data:
-            self.sensor_avg.labels(sensor=sensor).set(data['avg_value'])
-            self.sensor_max.labels(sensor=sensor).set(data['max_value'])
-            self.sensor_min.labels(sensor=sensor).set(data['min_value'])
-            print(f"📊 [Spark] {sensor} Aggregation: Avg={data['avg_value']:.2f}")
-            
-            # Update generic metrics
-            self.total_messages.set(self.message_count + 1)
-            self.last_update_time.set(time.time())
-            return
 
-        # 2. Handle Raw Sensor Data (from Producer)
+        # Handle Raw Sensor Data ONLY
         if 'value' in data:
             value = data['value']
             cycle = data.get('cycle', 0)
             sample_idx = data.get('sample_idx', 0)
             
             if sensor in self.sensor_values:
+                # Do NOT include 'cycle' as a label to avoid high cardinality (label explosion)
                 self.sensor_values[sensor].labels(
-                    sensor=sensor,
-                    cycle=str(cycle)
+                    sensor=sensor
                 ).set(value)
             
             self.sample_counts[sensor] += 1
-            self.sensor_sample_counts[sensor].labels(
-                sensor=sensor
-            ).set(self.sample_counts[sensor])
+
+            if sensor in self.sensor_sample_counts:
+                self.sensor_sample_counts[sensor].labels(
+                    sensor=sensor
+                ).set(self.sample_counts[sensor])
             
             self.total_messages.set(self.message_count + 1)
             self.last_update_time.set(time.time())
@@ -257,138 +238,14 @@ class PrometheusConsumer(BaseConsumer):
         print("✅ Final metrics pushed to Prometheus")
 
 
-class MongoDBConsumer(BaseConsumer):
-    
-    def __init__(self, mongo_uri: str = "mongodb://localhost:27017",
-                 db_name: str = "hydraulic_system",
-                 collection_name: str = "sensor_readings"):
-        super().__init__("mongodb-group")
-        self.mongo_uri = mongo_uri
-        self.db_name = db_name
-        self.collection_name = collection_name
-        
-        self.mongo_client = None
-        self.db = None
-        self.collection = None
-        
-        self.batch = []
-        self.batch_size = 100
-        self.batch_interval = 2  # seconds
-        self.last_batch_time = None
-        self.lock = threading.Lock()
-    
-    def connect_mongodb(self):
-        try:
-            from pymongo import MongoClient
-            
-            self.mongo_client = MongoClient(self.mongo_uri)
-            self.db = self.mongo_client[self.db_name]
-            self.collection = self.db[self.collection_name]
-            
-            self.mongo_client.admin.command('ping')
-            print(f"✅ Connected to MongoDB: {self.mongo_uri}/{self.db_name}")
-            
-            self.collection.create_index("sensor")
-            self.collection.create_index("timestamp")
-            self.collection.create_index("cycle")
-            print("✅ Created indexes on sensor, timestamp, cycle")
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ MongoDB connection failed: {e}")
-            return False
-    
-    def on_start(self):
-        """Initialize MongoDB connection"""
-        print("=" * 80)
-        print("🚀 MongoDB Consumer")
-        print("=" * 80)
-        print(f"Kafka Broker: {KAFKA_BROKER}")
-        print(f"MongoDB: {self.mongo_uri}/{self.db_name}")
-        print(f"Topics: {len(SENSOR_TOPICS)} sensors")
-        print("=" * 80)
-        
-        if not self.connect_mongodb():
-            raise Exception("Failed to connect to MongoDB")
-        
-        self.last_batch_time = time.time()
-    
-    def write_batch(self):
-        """Write batch to MongoDB"""
-        if not self.batch:
-            return
-        
-        try:
-            with self.lock:
-                batch_copy = self.batch.copy()
-                self.batch = []
-            
-            if batch_copy:
-                result = self.collection.insert_many(batch_copy)
-                print(f"✅ Wrote {len(result.inserted_ids)} records to MongoDB "
-                      f"(Total: {self.message_count})")
-        
-        except Exception as e:
-            print(f"❌ Error writing to MongoDB: {e}")
-    
-    def process_message(self, message):
-        data = message.value
-        
-        data['kafka_timestamp'] = datetime.fromtimestamp(
-            message.timestamp / 1000
-        ).isoformat()
-        data['kafka_partition'] = message.partition
-        data['kafka_offset'] = message.offset
-        
-        with self.lock:
-            self.batch.append(data)
-        
-        if (self.message_count + 1) % 100 == 0:
-            sensor = data.get('sensor', 'unknown')
-            value = data.get('value', 0)
-            sample_idx = data.get('sample_idx', 0)
-            print(f"📊 [{sensor}] Sample {sample_idx}: {value:.3f} "
-                  f"(Total received: {self.message_count + 1})")
-        
-        current_time = time.time()
-        if current_time - self.last_batch_time >= self.batch_interval:
-            self.write_batch()
-            self.last_batch_time = current_time
-    
-    def on_stop(self):
-        self.write_batch()
-        
-        if self.mongo_client:
-            self.mongo_client.close()
-            print("✅ MongoDB connection closed")
-
-
 def main():
-    import sys
-    
-    if len(sys.argv) < 2:
-        print("Usage: python consumer.py [prometheus|mongodb]")
-        print()
-        print("Examples:")
-        print("  python consumer.py prometheus")
-        print("  python consumer.py mongodb")
-        sys.exit(1)
-    
-    consumer_type = sys.argv[1].lower()
-    
-    if consumer_type == "prometheus":
-        consumer = PrometheusConsumer()
-    elif consumer_type == "mongodb":
-        consumer = MongoDBConsumer()
-    else:
-        print(f"❌ Unknown consumer type: {consumer_type}")
-        print("Available types: prometheus, mongodb")
-        sys.exit(1)
-    
+    if len(sys.argv) > 1 and sys.argv[1] == "mongodb":
+         print("❌ MongoDB consumer not supported in consumer_raw.py. Use consumer.py for Mongo.")
+         sys.exit(1)
+         
+    consumer = PrometheusConsumer()
     consumer.consume()
 
 
 if __name__ == "__main__":
     main()
-

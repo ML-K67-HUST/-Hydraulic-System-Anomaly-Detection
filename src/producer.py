@@ -8,13 +8,31 @@ import json
 import time
 import threading
 from datetime import datetime
+import os
+import socket
+
+# Monkey patch selectors to suppress "Invalid file descriptor" error (common in kafka-python)
+import selectors
+_orig_unregister = selectors.BaseSelector.unregister
+
+def new_unregister(self, fileobj):
+    try:
+        return _orig_unregister(self, fileobj)
+    except ValueError:
+        pass
+    except KeyError:
+        pass
+
+selectors.BaseSelector.unregister = new_unregister
+
+# Import kafka AFTER patches are applied
 from kafka import KafkaProducer
 from kafka.errors import NoBrokersAvailable
-import os
+
 from pathlib import Path
 
 # Kafka configuration
-KAFKA_BROKER = "localhost:29092"
+KAFKA_BROKER = "localhost:9092"
 
 # Get project root directory (parent of src/)
 SCRIPT_DIR = Path(__file__).parent.resolve()
