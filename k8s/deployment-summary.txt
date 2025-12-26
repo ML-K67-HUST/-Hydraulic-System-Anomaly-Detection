@@ -1,15 +1,15 @@
-Deployment completed at: Sat Dec 27 12:21:15 AM +07 2025
+Deployment completed at: Tue Dec 23 09:15:00 PM +07 2025
 Cluster name: bigdata-cluster
 
 Components deployed:
 - HDFS NameNode: hdfs-namenode-0
 - HDFS DataNode: hdfs-datanode-0
 - YARN ResourceManager: hdfs-resourcemanager
-- YARN NodeManager: hdfs-nodemanager (StatefulSet)
+- YARN NodeManager: hdfs-nodemanager (DaemonSet)
 - MongoDB: mongodb
 - Kafka: kafka-0
 - Schema Registry: schema-registry
-- Hydraulic System: Producer, Consumers, Analytics (Anomaly Detection), Monitoring Stack
+- Hydraulic System: Producer, Consumers, Monitoring Stack
 
 Access the cluster:
 kubectl cluster-info --context kind-bigdata-cluster

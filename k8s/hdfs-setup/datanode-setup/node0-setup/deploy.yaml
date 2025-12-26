@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hdfs-datanode
+  namespace: hdfs
+spec:
+  serviceName: hdfs-datanode
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hdfs-datanode
+  template:
+    metadata:
+      labels:
+        app: hdfs-datanode
+    spec:
+      nodeSelector:
+        role: hdfs-worker
+      containers:
+      - name: hdfs-datanode
+        image: hadoop-python:3.8
+        command:
+          - "/bin/bash"
+          - "-c"
+          - |
+            mkdir -p /hadoop/dfs/data
+            echo "Starting HDFS DataNode..."
+            /opt/hadoop/bin/hdfs --config /etc/hadoop datanode
+        resources:
+          requests:
+            cpu: "300m"
+            memory: "512Mi"
+          limits:
+            cpu: "800m"
+            memory: "1Gi"
+        ports:
+        - containerPort: 9864
+          name: web
+        - containerPort: 9866
+          name: data
+        env:
+        - name: JAVA_HOME
+          value: "/usr/lib/jvm/jre"
+        - name: HADOOP_CONF_DIR
+          value: /etc/hadoop
+        volumeMounts:
+        - name: hdfs-config-volume
+          mountPath: /etc/hadoop
+        - name: datanode-data
+          mountPath: /hadoop/dfs/data
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 9864
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 9864
+          initialDelaySeconds: 60
+          periodSeconds: 30
+      volumes:
+      - name: hdfs-config-volume
+        configMap:
+          name: hdfs-config 
+      - name: datanode-data
+        persistentVolumeClaim:
+          claimName: datanode-pvc-node0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hdfs-datanode
+  namespace: hdfs
+  labels:
+    app: hdfs-datanode
+spec:
+  ports:
+  - port: 9864
+    name: web
+  - port: 9866
+    name: data
+  clusterIP: None
+  selector:
+    app: hdfs-datanode

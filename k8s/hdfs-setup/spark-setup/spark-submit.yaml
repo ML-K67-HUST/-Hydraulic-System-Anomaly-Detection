@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: spark-submit-client
+  namespace: hdfs
+  labels:
+    app: spark-client
+spec:
+  containers:
+  - name: submit-container
+    image: spark-client:custom
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "2Gi"
+    env:
+    - name: HADOOP_CONF_DIR
+      value: /etc/hadoop
+    - name: HOME
+      value: /tmp
+    ports:
+    - containerPort: 4040 # Spark UI port
+    volumeMounts:
+    - name: hadoop-config-volume
+      mountPath: /etc/hadoop
+    - name: spark-config-volume
+      mountPath: /etc/spark/conf
+  volumes:
+  - name: hadoop-config-volume
+    configMap:
+      name: hdfs-config
+  - name: spark-config-volume
+    configMap:
+      name: spark-config

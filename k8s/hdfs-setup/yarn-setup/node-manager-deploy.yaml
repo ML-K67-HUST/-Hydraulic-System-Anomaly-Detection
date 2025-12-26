@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hdfs-nodemanager
+  namespace: hdfs
+spec:
+  serviceName: hdfs-nodemanager
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hdfs-nodemanager
+  template:
+    metadata:
+      labels:
+        app: hdfs-nodemanager
+    spec:
+      nodeSelector:
+        role: hdfs-worker
+      initContainers:
+      - name: fix-permissions
+        image: hadoop-python:3.8
+        command: ["sh", "-c", "chown -R 1000:100 /tmp/hadoop-yarn/nm-local-dir /var/log/hadoop/userlogs && chmod -R 775 /tmp/hadoop-yarn/nm-local-dir /var/log/hadoop/userlogs"]
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: nodemanager-local-dir
+          mountPath: /tmp/hadoop-yarn/nm-local-dir
+        - name: nodemanager-log-dir
+          mountPath: /var/log/hadoop/userlogs
+      containers:
+      - name: hdfs-nodemanager
+        image: hadoop-python:3.8
+        command:
+          - "/bin/bash"
+          - "-c"
+          - |
+            echo "Starting YARN NodeManager..."
+            # Force hostname to the FQDN that is resolvable via the headless service
+            export MY_HOSTNAME=$(hostname).hdfs-nodemanager.hdfs.svc.cluster.local
+            /opt/hadoop/bin/yarn --config /etc/hadoop nodemanager -Dyarn.nodemanager.hostname=${MY_HOSTNAME}
+        resources:
+          requests:
+            cpu: "800m"
+            memory: "2560Mi"
+          limits:
+            cpu: "3000m"
+            memory: "4Gi"
+        ports:
+        - containerPort: 8042
+          name: web
+        env:
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: HADOOP_CONF_DIR
+          value: /etc/hadoop
+        - name: YARN_CONF_DIR
+          value: /etc/hadoop
+        volumeMounts:
+        - name: hdfs-config-volume
+          mountPath: /etc/hadoop
+        - name: nodemanager-local-dir
+          mountPath: /tmp/hadoop-yarn/nm-local-dir
+        - name: nodemanager-log-dir
+          mountPath: /var/log/hadoop/userlogs
+      volumes:
+      - name: hdfs-config-volume
+        configMap:
+          name: hdfs-config
+      - name: nodemanager-local-dir
+        hostPath:
+          path: /tmp/nodemanager-local
+          type: DirectoryOrCreate
+      - name: nodemanager-log-dir
+        hostPath:
+          path: /tmp/nodemanager-logs
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hdfs-nodemanager
+  namespace: hdfs
+  labels:
+    app: hdfs-nodemanager
+spec:
+  clusterIP: None
+  selector:
+    app: hdfs-nodemanager
+  ports:
+  - port: 8042
+    name: web
