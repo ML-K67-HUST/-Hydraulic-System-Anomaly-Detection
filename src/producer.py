@@ -8,13 +8,31 @@ import json
 import time
 import threading
 from datetime import datetime
+import os
+import socket
+
+# Monkey patch selectors to suppress "Invalid file descriptor" error (common in kafka-python)
+import selectors
+_orig_unregister = selectors.BaseSelector.unregister
+
+def new_unregister(self, fileobj):
+    try:
+        return _orig_unregister(self, fileobj)
+    except ValueError:
+        pass
+    except KeyError:
+        pass
+
+selectors.BaseSelector.unregister = new_unregister
+
+# Import kafka AFTER patches are applied
 from kafka import KafkaProducer
 from kafka.errors import NoBrokersAvailable
-import os
+
 from pathlib import Path
 
 # Kafka configuration
-KAFKA_BROKER = "localhost:29092"
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 
 # Get project root directory (parent of src/)
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -154,6 +172,66 @@ class SensorProducer:
         self.producer.close()
 
 
+class LabelProducer:
+    """Producer for system labels (profile.txt)"""
+    
+    def __init__(self, cycle_idx=0):
+        self.cycle_idx = cycle_idx
+        self.topic = "hydraulic-labels"
+        self.producer = None
+        
+        # Load profile data
+        self.data = load_cycle_data("profile.txt", cycle_idx)
+        
+    def connect_kafka(self):
+        """Connect to Kafka broker"""
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                self.producer = KafkaProducer(
+                    bootstrap_servers=KAFKA_BROKER,
+                    value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+                    acks=1
+                )
+                print(f"[Labels] Connected to Kafka")
+                return True
+            except NoBrokersAvailable:
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                else:
+                    return False
+        return False
+        
+    def produce(self):
+        """Produce label data for the cycle"""
+        if not self.connect_kafka():
+            return
+            
+        try:
+            # Construct message matching Spark schema
+            # profile.txt columns: Cooler, Valve, Pump, Accumulator, Stable
+            message = {
+                "cycle": self.cycle_idx,
+                "label_cooler": int(self.data[0]),
+                "label_valve": int(self.data[1]),
+                "label_pump": int(self.data[2]),
+                "label_accumulator": int(self.data[3]),
+                "label_stable": int(self.data[4]),
+                "timestamp": time.time() # Spark expects double for timestamp in schema_labels
+            }
+            
+            self.producer.send(self.topic, value=message)
+            self.producer.flush()
+            print(f"[Labels] Sent profile data for cycle {self.cycle_idx}")
+            
+        except Exception as e:
+            print(f"[Labels] Error sending message: {e}")
+            
+        finally:
+            if self.producer:
+                self.producer.close()
+
+
 class HydraulicSystemProducer:
     """Main producer that manages all sensor producers"""
     
@@ -161,7 +239,7 @@ class HydraulicSystemProducer:
         self.cycle_idx = cycle_idx
         self.producers = []
         
-        # Create producer instances
+        # Create sensor producers
         for sensor_name, (filename, hz, num_samples) in SENSOR_CONFIGS.items():
             producer = SensorProducer(
                 sensor_name=sensor_name,
@@ -171,6 +249,9 @@ class HydraulicSystemProducer:
                 cycle_idx=cycle_idx
             )
             self.producers.append(producer)
+            
+        # Add Label Producer
+        self.producers.append(LabelProducer(cycle_idx=cycle_idx))
     
     def start(self):
         """Start all sensor producers in parallel"""
@@ -178,14 +259,16 @@ class HydraulicSystemProducer:
         print("🚀 Hydraulic System Real-time Data Producer")
         print("=" * 80)
         print(f"Kafka Broker: {KAFKA_BROKER}")
-        print(f"Sensors: {len(SENSOR_CONFIGS)}")
+        print(f"Sensors: {len(SENSOR_CONFIGS)} + Labels")
         print(f"Cycle: {self.cycle_idx}")
         print("=" * 80)
         
         # Start all producers in separate threads
         threads = []
         for producer in self.producers:
-            thread = threading.Thread(target=producer.produce, name=producer.sensor_name)
+            # Labels don't have sensor_name attribute
+            name = getattr(producer, 'sensor_name', 'Labels')
+            thread = threading.Thread(target=producer.produce, name=name)
             thread.start()
             threads.append(thread)
             # Small delay to stagger thread starts

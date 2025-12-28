@@ -62,3 +62,8 @@ temp/
 
 # Data files (too large for git)
 data/
+deploy
+checkpoints
+venv
+reports/
+deployment-summary.txt/
