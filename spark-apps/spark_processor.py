@@ -8,9 +8,6 @@ def main():
         .appName("HydraulicSystemAnalytics") \
         .config("spark.sql.streaming.checkpointLocation", "/tmp/spark-checkpoints") \
         .getOrCreate()
-    
-    import os
-    kafka_broker = os.getenv("KAFKA_BROKER", "kafka:29092")
 
     # Schema for Labels (profile.txt)
     schema_labels = StructType([
@@ -37,10 +34,9 @@ def main():
     # Note: KAFKA_BROKER in docker network is 'kafka:29092' (INTERNAL listener)
     df = spark.readStream \
         .format("kafka") \
-        .option("kafka.bootstrap.servers", kafka_broker) \
+        .option("kafka.bootstrap.servers", "kafka:29092") \
         .option("subscribePattern", "hydraulic-.*") \
         .option("startingOffsets", "latest") \
-        .option("failOnDataLoss", "false") \
         .load()
 
     # Parse JSON and Timestamp
@@ -69,23 +65,9 @@ def main():
             count("value").alias("sample_count")
         )
 
-    # Simple Rule-Based Anomaly Detection (for Dashboard Demo)
-    # Adjusted thresholds to FORCE anomalies on current data (PS1~156, TS1~45)
-    # PS1 < 160 bar -> Anomaly (Underpressure)
-    # TS1 > 40 degC -> Anomaly (Overheat)
-    with_anomaly = aggregated.withColumn("prediction",
-        when((col("sensor") == "PS1") & (col("avg_value") < 160), 1)
-        .when((col("sensor") == "TS1") & (col("avg_value") > 40), 1)
-        .when((col("sensor") == "FS1") & (col("avg_value") < 1), 1)
-        .otherwise(0)
-    ).withColumn("anomaly_score",
-        # Mock score for visualization
-        when(col("prediction") == 1, 0.95).otherwise(0.1)
-    )
-
     # Format output for "hydraulic-analytics" topic
     # Calculate Range (Max - Min)
-    output = with_anomaly.select(
+    output = aggregated.select(
         col("sensor").alias("key"),
         to_json(struct(
             col("sensor"),
@@ -96,9 +78,7 @@ def main():
             col("min_value"),
             col("stddev_value"),
             (col("max_value") - col("min_value")).alias("range_value"),
-            col("sample_count"),
-            col("prediction"),
-            col("anomaly_score")
+            col("sample_count")
         )).alias("value")
     )
 
@@ -106,10 +86,9 @@ def main():
     # Write Analytics to Kafka
     query_analytics = output.writeStream \
         .format("kafka") \
-        .option("kafka.bootstrap.servers", kafka_broker) \
+        .option("kafka.bootstrap.servers", "kafka:29092") \
         .option("topic", "hydraulic-analytics") \
-        .option("checkpointLocation", "/tmp/chk_analytics_new") \
-        .queryName("analytics") \
+        .option("checkpointLocation", "/tmp/spark-checkpoints/analytics") \
         .outputMode("update") \
         .start()
 
@@ -117,10 +96,9 @@ def main():
     # Partition by 'sensor' for efficient querying
     query_hdfs = parsed.writeStream \
         .format("parquet") \
-        .option("path", "/tmp/hydraulic_data/raw") \
-        .option("checkpointLocation", "/tmp/spark-checkpoints/local_raw_v_final") \
+        .option("path", "hdfs://namenode:9000/hydraulic/raw") \
+        .option("checkpointLocation", "/tmp/spark-checkpoints/hdfs_raw") \
         .partitionBy("sensor") \
-        .queryName("hdfs_raw") \
         .outputMode("append") \
         .start()
 
@@ -128,7 +106,7 @@ def main():
     # This runs in parallel
     df_labels = spark.readStream \
         .format("kafka") \
-        .option("kafka.bootstrap.servers", kafka_broker) \
+        .option("kafka.bootstrap.servers", "kafka:29092") \
         .option("subscribe", "hydraulic-labels") \
         .option("startingOffsets", "earliest") \
         .load()
@@ -139,24 +117,14 @@ def main():
 
     query_labels_hdfs = parsed_labels.writeStream \
         .format("parquet") \
-        .option("path", "/tmp/hydraulic_data/labels") \
-        .option("checkpointLocation", "/tmp/spark-checkpoints/local_labels_v1") \
+        .option("path", "hdfs://namenode:9000/hydraulic/labels") \
+        .option("checkpointLocation", "/tmp/spark-checkpoints/hdfs_labels") \
         .trigger(processingTime='5 seconds') \
-        .queryName("hdfs_labels") \
         .outputMode("append") \
         .start()
 
     # Wait for both
-    try:
-        print("🟢 Streaming started! Press Ctrl+C to stop.")
-        spark.streams.awaitAnyTermination()
-    except KeyboardInterrupt:
-        print("\n🛑 Stopped by User.")
-    except Exception as e:
-        print(f"\n❌ STREAM ERROR: {e}")
-        raise e
-    finally:
-        print("📉 Spark Context Stopping...")
+    spark.streams.awaitAnyTermination()
 
 if __name__ == "__main__":
     main()

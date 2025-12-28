@@ -5,7 +5,6 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 import threading
 import sys
-import os
 
 # Monkey patch selectors to suppress "Invalid file descriptor" error (common in kafka-python)
 import selectors
@@ -32,7 +31,7 @@ from kafka import KafkaConsumer
 
 
 # Kafka configuration
-KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
+KAFKA_BROKER = "localhost:9092"
 CONSUMER_GROUP_PREFIX = "hydraulic"
 PROMETHEUS_JOB_NAME = "hydraulic_spark"  # Unique job for this consumer
 
@@ -48,7 +47,7 @@ class BaseConsumer(ABC):
         self.message_count = 0
         
     def create_consumer(self):
-        max_retries = 30
+        max_retries = 5
         retry_delay = 2
         
         for attempt in range(max_retries):
@@ -122,32 +121,15 @@ class BaseConsumer(ABC):
 
 
 class PrometheusConsumer(BaseConsumer):
-    def __init__(self, pushgateway_url: str = None):
+    def __init__(self, pushgateway_url: str = "localhost:9091"):
         super().__init__("prometheus-analytics")
-        self.pushgateway_url = pushgateway_url or os.getenv("PUSHGATEWAY_URL", "localhost:9091")
+        self.pushgateway_url = pushgateway_url
         self.push_interval = 2  # seconds
         self.last_push_time = None
         
         from prometheus_client import CollectorRegistry, Gauge, push_to_gateway, Counter
-        from pymongo import MongoClient 
-
         self.push_to_gateway = push_to_gateway
         
-        # MongoDB Setup
-        self.mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:admin@localhost:27017/")
-        self.db_name = "hydraulic_system"
-        self.collection_name = "analytics"
-        self.mongo_client = None
-        self.mongo_collection = None
-        
-        try:
-            self.mongo_client = MongoClient(self.mongo_uri, serverSelectionTimeoutMS=2000)
-            self.mongo_client.admin.command('ping') # Fast check
-            self.mongo_collection = self.mongo_client[self.db_name][self.collection_name]
-            print(f"✅ Connected to MongoDB ({self.db_name}.{self.collection_name})")
-        except Exception as e:
-            print(f"⚠️  MongoDB Connection Failed: {e} (Will continue with Prometheus only)")
-
         self.registry = CollectorRegistry()
         
         # Aggregated metrics (from Spark) only
@@ -245,16 +227,6 @@ class PrometheusConsumer(BaseConsumer):
             self.total_messages.set(self.message_count + 1)
             self.last_update_time.set(time.time())
 
-            # --- MONGODB WRITE ---
-            if self.mongo_collection:
-                try:
-                    # COPY data to avoid mutating original for aggregation logic (if any)
-                    mongo_doc = data.copy()
-                    mongo_doc['_ingested_at'] = time.time()
-                    self.mongo_collection.insert_one(mongo_doc)
-                except Exception as e:
-                    print(f"⚠️ Mongo Write Error: {e}")
-
     def check_anomalies(self, sensor, data):
         """Check for anomalies based on thresholds and rules"""
         avg_val = data.get('avg_value', 0)
@@ -305,8 +277,6 @@ class PrometheusConsumer(BaseConsumer):
         # For simplicity in this consumer: We emit a per-sensor health impact, and Aggregation happens in Grafana/Prometheus?
         # NO, simpler: Just emit a 'hydraulic_sensor_health' metric (0-100) for this sensor.
         
-
-        # Update System Health Score
         sensor_health = 100
         for anomaly_type in anomalies:
              if 'spike' in anomaly_type:
@@ -321,14 +291,11 @@ class PrometheusConsumer(BaseConsumer):
         if current_time - self.last_push_time >= self.push_interval:
             self.push_metrics()
             self.last_push_time = current_time
-            if (self.message_count + 1) % 10 == 0: 
+            if (self.message_count + 1) % 10 == 0: # More frequent logging for analytics due to lower volume
                 print(f"✅ Pushed metrics to Prometheus ({self.message_count + 1:,} total)")
-
+    
     def on_stop(self):
         self.push_metrics()
-        if self.mongo_client:
-            self.mongo_client.close()
-            print("✅ Closed MongoDB connection")
         print("✅ Final metrics pushed to Prometheus")
 
 
