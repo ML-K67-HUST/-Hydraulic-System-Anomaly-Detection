@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hydraulic
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hydraulic-producer
+  namespace: hydraulic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hydraulic-producer
+  template:
+    metadata:
+      labels:
+        app: hydraulic-producer
+    spec:
+      initContainers:
+        - name: download-data
+          image: busybox
+          command: ["sh", "-c", "echo 'Downloading dataset...'; mkdir -p /app/data && if [ ! -f /app/data/PS1.txt ]; then wget --no-check-certificate -q -O /tmp/data.zip https://archive.ics.uci.edu/static/public/447/condition+monitoring+of+hydraulic+systems.zip && unzip -q -d /app/data /tmp/data.zip; echo 'Dataset downloaded and extracted.'; else echo 'Dataset already exists.'; fi"]
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+      containers:
+        - name: producer
+          image: hydraulic-system:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "src/producer.py", "--continuous"]
+          env:
+            - name: KAFKA_BROKER
+              value: "kafka-service.kafka.svc.cluster.local:9092"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+            - name: src-volume
+              mountPath: /app/src
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+      volumes:
+        - name: data-volume
+          emptyDir: {}
+        - name: src-volume
+          configMap:
+            name: hydraulic-source
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hydraulic-consumer-prometheus
+  namespace: hydraulic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hydraulic-consumer-prometheus
+  template:
+    metadata:
+      labels:
+        app: hydraulic-consumer-prometheus
+    spec:
+      containers:
+        - name: consumer
+          image: hydraulic-system:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "src/consumer.py", "prometheus"]
+          env:
+            - name: KAFKA_BROKER
+              value: "kafka-service.kafka.svc.cluster.local:9092"
+            - name: PUSHGATEWAY_URL
+              value: "pushgateway.monitoring.svc.cluster.local:9091"
+          volumeMounts:
+             - name: src-volume
+               mountPath: /app/src
+      volumes:
+        - name: src-volume
+          configMap:
+            name: hydraulic-source
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hydraulic-consumer-mongo
+  namespace: hydraulic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hydraulic-consumer-mongo
+  template:
+    metadata:
+      labels:
+        app: hydraulic-consumer-mongo
+    spec:
+      containers:
+        - name: consumer
+          image: hydraulic-system:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "src/consumer.py", "mongodb"]
+          env:
+            - name: KAFKA_BROKER
+              value: "kafka-service.kafka.svc.cluster.local:9092"
+            - name: MONGO_URI
+              value: "mongodb://admin:password123@mongodb-service.default.svc.cluster.local:27017"
+          volumeMounts:
+            - name: src-volume
+              mountPath: /app/src
+      volumes:
+        - name: src-volume
+          configMap:
+            name: hydraulic-source

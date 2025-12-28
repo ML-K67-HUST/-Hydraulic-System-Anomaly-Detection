@@ -27,6 +27,7 @@ def create_dashboard():
             "tags": ["raw", "monitoring", "hydraulic", "clean"],
             "timezone": "browser",
             "refresh": "5s",
+            "time": {"from": "now-5m", "to": "now"},
             "graphTooltip": 1, # Shared Crosshair (Critical for correlation)
             "panels": [
                 # --- ROW 0: KAFKA CONSUMER HEALTH ---
@@ -38,6 +39,7 @@ def create_dashboard():
                     "targets": [{"refId": "A", "expr": "rate(hydraulic_messages_total[1m])", "legendFormat": "Speed"}],
                      "fieldConfig": {
                         "defaults": {
+                            "displayName": "Speed",
                             "unit": "pps", 
                             "color": {"mode": "thresholds"},
                             "thresholds": {"mode": "absolute", "steps": [{"value": 0, "color": "red"}, {"value": 1, "color": "green"}]}
@@ -50,7 +52,7 @@ def create_dashboard():
                     "type": "stat",
                     "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
                     "targets": [{"refId": "A", "expr": "hydraulic_messages_total", "legendFormat": "Total"}],
-                     "fieldConfig": {"defaults": {"unit": "none", "color": {"mode": "fixed", "fixedColor": "blue"}}}
+                     "fieldConfig": {"defaults": {"displayName": "Total", "unit": "none", "color": {"mode": "fixed", "fixedColor": "blue"}}}
                 },
                 {
                     "id": 22,
@@ -60,8 +62,9 @@ def create_dashboard():
                     "targets": [{"refId": "A", "expr": "time() - hydraulic_last_update_timestamp", "legendFormat": "Lag"}],
                      "fieldConfig": {
                         "defaults": {
+                            "displayName": "Lag",
                             "unit": "s",
-                             "thresholds": {"mode": "absolute", "steps": [{"value": 0, "color": "green"}, {"value": 5, "color": "orange"}, {"value": 30, "color": "red"}]}
+                            "thresholds": {"mode": "absolute", "steps": [{"value": 0, "color": "green"}, {"value": 5, "color": "orange"}, {"value": 30, "color": "red"}]}
                         }
                     }
                 },
@@ -72,12 +75,13 @@ def create_dashboard():
                     "type": "gauge",
                     "gridPos": {"x": 0, "y": 4, "w": 8, "h": 6},
                     "targets": [
-                        {"refId": "A", "expr": 'hydraulic_raw_ps1', "legendFormat": "Pressure (PS1)"},
-                        {"refId": "B", "expr": 'hydraulic_raw_ts1', "legendFormat": "Temp (TS1)"},
-                        {"refId": "C", "expr": 'hydraulic_raw_fs1', "legendFormat": "Flow (FS1)"}
+                        {"refId": "A", "expr": 'hydraulic_ps1_value_clean', "legendFormat": "Pressure (PS1)"},
+                        {"refId": "B", "expr": 'hydraulic_ts1_value_clean', "legendFormat": "Temp (TS1)"},
+                        {"refId": "C", "expr": 'hydraulic_fs1_value_clean', "legendFormat": "Flow (FS1)"}
                     ],
                     "fieldConfig": {
                         "defaults": {
+                            "displayName": "${__field.labels}",
                             "min": 0,
                             "thresholds": {
                                 "mode": "absolute",
@@ -96,7 +100,7 @@ def create_dashboard():
                     "type": "stat",
                     "gridPos": {"x": 8, "y": 0, "w": 4, "h": 6},
                     "targets": [
-                        {"refId": "A", "expr": 'hydraulic_raw_eps1', "legendFormat": "Power"}
+                        {"refId": "A", "expr": 'hydraulic_eps1_value_clean', "legendFormat": "Power"}
                     ],
                     "options": {
                         "colorMode": "background",
@@ -110,10 +114,10 @@ def create_dashboard():
                     "type": "bargauge",
                     "gridPos": {"x": 12, "y": 0, "w": 12, "h": 6},
                     "targets": [
-                        {"refId": "A", "expr": 'hydraulic_raw_ts1', "legendFormat": "TS1"},
-                        {"refId": "B", "expr": 'hydraulic_raw_ts2', "legendFormat": "TS2"},
-                        {"refId": "C", "expr": 'hydraulic_raw_ts3', "legendFormat": "TS3"},
-                        {"refId": "D", "expr": 'hydraulic_raw_ts4', "legendFormat": "TS4"}
+                        {"refId": "A", "expr": 'hydraulic_ts1_value_clean', "legendFormat": "TS1"},
+                        {"refId": "B", "expr": 'hydraulic_ts2_value_clean', "legendFormat": "TS2"},
+                        {"refId": "C", "expr": 'hydraulic_ts3_value_clean', "legendFormat": "TS3"},
+                        {"refId": "D", "expr": 'hydraulic_ts4_value_clean', "legendFormat": "TS4"}
                     ],
                     "options": {
                         "orientation": "vertical",
@@ -130,12 +134,12 @@ def create_dashboard():
                     "type": "timeseries",
                     "gridPos": {"x": 0, "y": 6, "w": 24, "h": 8},
                     "targets": [
-                        {"refId": "A", "expr": 'hydraulic_raw_ps1', "legendFormat": "PS1"},
-                        {"refId": "B", "expr": 'hydraulic_raw_ps2', "legendFormat": "PS2"},
-                        {"refId": "C", "expr": 'hydraulic_raw_ps3', "legendFormat": "PS3"},
-                        {"refId": "D", "expr": 'hydraulic_raw_ps4', "legendFormat": "PS4"},
-                        {"refId": "E", "expr": 'hydraulic_raw_ps5', "legendFormat": "PS5"},
-                        {"refId": "F", "expr": 'hydraulic_raw_ps6', "legendFormat": "PS6"}
+                        {"refId": "A", "expr": 'hydraulic_ps1_value_clean', "legendFormat": "PS1"},
+                        {"refId": "B", "expr": 'hydraulic_ps2_value_clean', "legendFormat": "PS2"},
+                        {"refId": "C", "expr": 'hydraulic_ps3_value_clean', "legendFormat": "PS3"},
+                        {"refId": "D", "expr": 'hydraulic_ps4_value_clean', "legendFormat": "PS4"},
+                        {"refId": "E", "expr": 'hydraulic_ps5_value_clean', "legendFormat": "PS5"},
+                        {"refId": "F", "expr": 'hydraulic_ps6_value_clean', "legendFormat": "PS6"}
                     ],
                     "fieldConfig": {"defaults": {"unit": "bar", "custom": {"drawStyle": "line", "lineWidth": 1}}}
                 },
@@ -144,25 +148,25 @@ def create_dashboard():
                 {
                     "id": 13, "title": "🔥 PS1 Distribution", "type": "heatmap",
                     "gridPos": {"x": 0, "y": 14, "w": 6, "h": 6},
-                    "targets": [{"refId": "A", "expr": 'hydraulic_raw_ps1', "format": "heatmap"}],
+                    "targets": [{"refId": "A", "expr": 'hydraulic_ps1_value_clean', "format": "heatmap"}],
                     "options": {"calculate": True, "calculation": {"xBuckets": {"mode": "size", "value": "10s"}}}
                 },
                 {
                     "id": 14, "title": "🔥 PS2 Distribution", "type": "heatmap",
                     "gridPos": {"x": 6, "y": 14, "w": 6, "h": 6},
-                    "targets": [{"refId": "A", "expr": 'hydraulic_raw_ps2', "format": "heatmap"}],
+                    "targets": [{"refId": "A", "expr": 'hydraulic_ps2_value_clean', "format": "heatmap"}],
                     "options": {"calculate": True, "calculation": {"xBuckets": {"mode": "size", "value": "10s"}}}
                 },
                 {
                     "id": 15, "title": "🔥 PS3 Distribution", "type": "heatmap",
                     "gridPos": {"x": 12, "y": 14, "w": 6, "h": 6},
-                    "targets": [{"refId": "A", "expr": 'hydraulic_raw_ps3', "format": "heatmap"}],
+                    "targets": [{"refId": "A", "expr": 'hydraulic_ps3_value_clean', "format": "heatmap"}],
                     "options": {"calculate": True, "calculation": {"xBuckets": {"mode": "size", "value": "10s"}}}
                 },
                 {
                     "id": 16, "title": "🔥 PS4 Distribution", "type": "heatmap",
                     "gridPos": {"x": 18, "y": 14, "w": 6, "h": 6},
-                    "targets": [{"refId": "A", "expr": 'hydraulic_raw_ps4', "format": "heatmap"}],
+                    "targets": [{"refId": "A", "expr": 'hydraulic_ps4_value_clean', "format": "heatmap"}],
                     "options": {"calculate": True, "calculation": {"xBuckets": {"mode": "size", "value": "10s"}}}
                 },
 
@@ -173,10 +177,10 @@ def create_dashboard():
                     "type": "timeseries",
                     "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
                     "targets": [
-                        {"refId": "A", "expr": 'hydraulic_raw_ts1', "legendFormat": "TS1"},
-                        {"refId": "B", "expr": 'hydraulic_raw_ts2', "legendFormat": "TS2"},
-                        {"refId": "C", "expr": 'hydraulic_raw_ts3', "legendFormat": "TS3"},
-                        {"refId": "D", "expr": 'hydraulic_raw_ts4', "legendFormat": "TS4"}
+                        {"refId": "A", "expr": 'hydraulic_ts1_value_clean', "legendFormat": "TS1"},
+                        {"refId": "B", "expr": 'hydraulic_ts2_value_clean', "legendFormat": "TS2"},
+                        {"refId": "C", "expr": 'hydraulic_ts3_value_clean', "legendFormat": "TS3"},
+                        {"refId": "D", "expr": 'hydraulic_ts4_value_clean', "legendFormat": "TS4"}
                     ],
                     "fieldConfig": {"defaults": {"unit": "celsius", "custom": {"drawStyle": "line", "lineWidth": 1}}}
                 },
@@ -186,28 +190,16 @@ def create_dashboard():
                     "type": "timeseries",
                     "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
                     "targets": [
-                        {"refId": "A", "expr": 'hydraulic_raw_vs1', "legendFormat": "Vibration (VS1)"},
-                        {"refId": "B", "expr": 'hydraulic_raw_ce', "legendFormat": "Cooling Eff (CE)"},
-                        {"refId": "C", "expr": 'hydraulic_raw_cp', "legendFormat": "Cooling Power (CP)"},
-                        {"refId": "D", "expr": 'hydraulic_raw_se', "legendFormat": "Efficiency (SE)"}
+                        {"refId": "A", "expr": 'hydraulic_vs1_value_clean', "legendFormat": "Vibration (VS1)"},
+                        {"refId": "B", "expr": 'hydraulic_ce_value_clean', "legendFormat": "Cooling Eff (CE)"},
+                        {"refId": "C", "expr": 'hydraulic_cp_value_clean', "legendFormat": "Cooling Power (CP)"},
+                        {"refId": "D", "expr": 'hydraulic_se_value_clean', "legendFormat": "Efficiency (SE)"}
                     ],
                      "fieldConfig": {"defaults": {"custom": {"drawStyle": "line", "lineWidth": 1}}}
                 },
                 
                 # --- ROW 5: FLOW & MOTOR ---
-                {
-                    "id": 3,
-                    "title": "Flow Rate (FS1, FS2)",
-                    "type": "timeseries",
-                    "gridPos": {"x": 0, "y": 28, "w": 12, "h": 8},
-                    "targets": [
-                        {"refId": "A", "expr": 'hydraulic_raw_ts1', "legendFormat": "TS1"},
-                        {"refId": "B", "expr": 'hydraulic_raw_ts2', "legendFormat": "TS2"},
-                        {"refId": "C", "expr": 'hydraulic_raw_ts3', "legendFormat": "TS3"},
-                        {"refId": "D", "expr": 'hydraulic_raw_ts4', "legendFormat": "TS4"}
-                    ],
-                    "fieldConfig": {"defaults": {"unit": "celsius", "custom": {"drawStyle": "line", "lineWidth": 1}}}
-                },
+
                 # --- ROW 3: FLOW & MOTOR ---
                 {
                     "id": 3,
@@ -215,8 +207,8 @@ def create_dashboard():
                     "type": "timeseries",
                     "gridPos": {"x": 0, "y": 28, "w": 12, "h": 8},
                     "targets": [
-                        {"refId": "A", "expr": 'hydraulic_raw_fs1', "legendFormat": "FS1"},
-                        {"refId": "B", "expr": 'hydraulic_raw_fs2', "legendFormat": "FS2"}
+                        {"refId": "A", "expr": 'hydraulic_fs1_value_clean', "legendFormat": "FS1"},
+                        {"refId": "B", "expr": 'hydraulic_fs2_value_clean', "legendFormat": "FS2"}
                     ],
                     "fieldConfig": {"defaults": {"unit": "l/min", "custom": {"drawStyle": "line", "lineWidth": 1}}}
                 },
@@ -226,7 +218,7 @@ def create_dashboard():
                     "type": "timeseries",
                     "gridPos": {"x": 12, "y": 28, "w": 12, "h": 8},
                     "targets": [
-                        {"refId": "A", "expr": 'hydraulic_raw_eps1', "legendFormat": "EPS1"}
+                        {"refId": "A", "expr": 'hydraulic_eps1_value_clean', "legendFormat": "EPS1"}
                     ],
                     "fieldConfig": {"defaults": {"unit": "watt", "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 10}}}
                 }

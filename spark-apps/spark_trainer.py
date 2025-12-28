@@ -78,7 +78,8 @@ def train_and_log_model(spark, train_df, test_df, classifier, model_name, featur
         # Log Model
         print(f"💾 Saving {model_name} to MLflow...")
         try:
-            mlflow.spark.log_model(model, model_name)
+            # Register the model in MLflow Model Registry
+            mlflow.spark.log_model(model, model_name, registered_model_name=f"Hydraulic_{model_name}_Model")
             print("🎉 Model Saved Successfully!")
         except Exception as e:
             print(f"❌ Error Saving Model: {e}")
@@ -91,8 +92,22 @@ def main():
     print("🚀 Starting Spark Trainer (Multi-Model)...")
 
     # 1. Load Data
-    df_sensors = spark.read.parquet("hdfs://namenode:9000/hydraulic/raw")
-    df_labels = spark.read.parquet("hdfs://namenode:9000/hydraulic/labels")
+    # Priority: HDFS > Local Fallback
+    hdfs_host = os.getenv("HDFS_HOST", "localhost")
+    try:
+        print(f"🌍 Attempting to read from HDFS ({hdfs_host})...")
+        df_sensors = spark.read.parquet(f"hdfs://{hdfs_host}:9000/hydraulic/raw")
+        df_labels = spark.read.parquet(f"hdfs://{hdfs_host}:9000/hydraulic/labels")
+        print("✅ Retrieved data from HDFS!")
+    except Exception as e:
+        print(f"⚠️ HDFS Read Failed (NameNode might be down or empty): {e}")
+        print("📂 Falling back to local data: /tmp/hydraulic_data/...")
+        base_path = "/tmp/hydraulic_data"
+        if not os.path.exists(f"{base_path}/raw"):
+             raise RuntimeError(f"❌ Critical: Neither HDFS nor Local data found at {base_path}!")
+        df_sensors = spark.read.parquet(f"{base_path}/raw")
+        df_labels = spark.read.parquet(f"{base_path}/labels")
+    
     print(f"📊 Data Count: Sensors={df_sensors.count()}, Labels={df_labels.count()}")
 
     # 2. Feature Engineering (Pivot)
@@ -108,7 +123,9 @@ def main():
     
     # 4. Vectorize Features
     label_cols = ["label_cooler", "label_valve", "label_pump", "label_accumulator", "label_stable"]
-    ignore_cols = ["cycle", "timestamp", "kafka_timestamp"] + label_cols
+    # FIX LEAKAGE: Exclude CE (Cooling Efficiency) and CP (Cooling Power) as they are direct indicators
+    leakage_cols = ["CE_mean", "CE_std", "CP_mean", "CP_std"]
+    ignore_cols = ["cycle", "timestamp", "kafka_timestamp"] + label_cols + leakage_cols
     feature_cols = [c for c in data.columns if c not in ignore_cols]
     
     assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
@@ -132,9 +149,20 @@ def main():
         ("DecisionTree", DecisionTreeClassifier(labelCol=target_indexed, featuresCol="features"))
     ]
     
-    # 8. Set MLflow Experiment
-    mlflow.set_tracking_uri("http://sentiman_mlflow:5000")
-    mlflow.set_experiment("hydraulic_system_health_advanced")
+    # 8. Set MLflow Experiment with Local Artifact Storage
+    mlflow.set_tracking_uri("http://localhost:5050")
+    cwd = os.getcwd()
+    artifact_path = f"file://{cwd}/mlflow_artifacts"
+    experiment_name = "hydraulic_system_health_fixed"
+    
+    try:
+        # Try creating with custom artifact location
+        mlflow.create_experiment(experiment_name, artifact_location=artifact_path)
+    except:
+        # If exists, ignore
+        pass
+        
+    mlflow.set_experiment(experiment_name)
     
     # 9. Train Loop
     for name, clf in models_to_train:

@@ -5,6 +5,7 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 import threading
 import socket
+import os
 
 # Monkey patch selectors to suppress "Invalid file descriptor" error (common in kafka-python)
 import selectors
@@ -31,7 +32,7 @@ from kafka import KafkaConsumer
 
 
 # Kafka configuration
-KAFKA_BROKER = "localhost:9092"
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 CONSUMER_GROUP_PREFIX = "hydraulic"
 
 # Sensor topics
@@ -54,7 +55,7 @@ class BaseConsumer(ABC):
         self.message_count = 0
         
     def create_consumer(self):
-        max_retries = 5
+        max_retries = 30
         retry_delay = 2
         
         for attempt in range(max_retries):
@@ -67,7 +68,6 @@ class BaseConsumer(ABC):
                     auto_offset_reset='latest',
                     enable_auto_commit=True,
                     auto_commit_interval_ms=1000,
-                    consumer_timeout_ms=5000,
                     request_timeout_ms=30000,
                     api_version_auto_timeout_ms=5000
                 )
@@ -128,9 +128,9 @@ class BaseConsumer(ABC):
 
 
 class PrometheusConsumer(BaseConsumer):
-    def __init__(self, pushgateway_url: str = "localhost:9091"):
-        super().__init__("prometheus-group")
-        self.pushgateway_url = pushgateway_url
+    def __init__(self, pushgateway_url: str = None):
+        super().__init__("prometheus-group-v2")
+        self.pushgateway_url = pushgateway_url or os.getenv("PUSHGATEWAY_URL", "localhost:9091")
         self.push_interval = 2  # seconds
         self.last_push_time = None
         
@@ -146,9 +146,9 @@ class PrometheusConsumer(BaseConsumer):
             sensor_name = topic.replace("hydraulic-", "")
             
             self.sensor_values[sensor_name] = Gauge(
-                f'hydraulic_{sensor_name.lower()}_value',
+                f'hydraulic_{sensor_name.lower()}_value_clean',
                 f'{sensor_name} sensor reading',
-                ['sensor', 'cycle'],
+                ['sensor'],
                 registry=self.registry
             )
             
@@ -229,8 +229,7 @@ class PrometheusConsumer(BaseConsumer):
             
             if sensor in self.sensor_values:
                 self.sensor_values[sensor].labels(
-                    sensor=sensor,
-                    cycle=str(cycle)
+                    sensor=sensor
                 ).set(value)
             
             self.sample_counts[sensor] += 1
@@ -259,19 +258,23 @@ class PrometheusConsumer(BaseConsumer):
 
 class MongoDBConsumer(BaseConsumer):
     
-    def __init__(self, mongo_uri: str = "mongodb://localhost:27017",
+    def __init__(self, mongo_uri: str = None,
                  db_name: str = "hydraulic_system",
-                 collection_name: str = "sensor_readings"):
+                 collection_name: str = "sensor_readings",
+                 analytics_collection_name: str = "sensor_analytics"):
         super().__init__("mongodb-group")
-        self.mongo_uri = mongo_uri
+        self.mongo_uri = mongo_uri or os.getenv("MONGO_URI", "mongodb://localhost:27017")
         self.db_name = db_name
         self.collection_name = collection_name
+        self.analytics_collection_name = analytics_collection_name
         
         self.mongo_client = None
         self.db = None
         self.collection = None
+        self.analytics_collection = None
         
-        self.batch = []
+        self.batch_raw = []
+        self.batch_analytics = []
         self.batch_size = 100
         self.batch_interval = 2  # seconds
         self.last_batch_time = None
@@ -284,14 +287,16 @@ class MongoDBConsumer(BaseConsumer):
             self.mongo_client = MongoClient(self.mongo_uri)
             self.db = self.mongo_client[self.db_name]
             self.collection = self.db[self.collection_name]
+            self.analytics_collection = self.db[self.analytics_collection_name]
             
             self.mongo_client.admin.command('ping')
             print(f"✅ Connected to MongoDB: {self.mongo_uri}/{self.db_name}")
             
             self.collection.create_index("sensor")
             self.collection.create_index("timestamp")
-            self.collection.create_index("cycle")
-            print("✅ Created indexes on sensor, timestamp, cycle")
+            
+            self.analytics_collection.create_index("sensor")
+            print("✅ Created indexes for both collections")
             
             return True
             
@@ -321,13 +326,19 @@ class MongoDBConsumer(BaseConsumer):
         
         try:
             with self.lock:
-                batch_copy = self.batch.copy()
-                self.batch = []
+                raw_to_write = self.batch_raw.copy()
+                analytics_to_write = self.batch_analytics.copy()
+                self.batch_raw = []
+                self.batch_analytics = []
             
-            if batch_copy:
-                result = self.collection.insert_many(batch_copy)
-                print(f"✅ Wrote {len(result.inserted_ids)} records to MongoDB "
-                      f"(Total: {self.message_count})")
+            if raw_to_write:
+                self.collection.insert_many(raw_to_write)
+            
+            if analytics_to_write:
+                self.analytics_collection.insert_many(analytics_to_write)
+                print(f"✅ Wrote {len(raw_to_write)} Raw + {len(analytics_to_write)} Analytics msg")
+            elif raw_to_write:
+                 print(f"✅ Wrote {len(raw_to_write)} Raw records")
         
         except Exception as e:
             print(f"❌ Error writing to MongoDB: {e}")
@@ -341,8 +352,13 @@ class MongoDBConsumer(BaseConsumer):
         data['kafka_partition'] = message.partition
         data['kafka_offset'] = message.offset
         
+        data['kafka_offset'] = message.offset
+        
         with self.lock:
-            self.batch.append(data)
+            if 'avg_value' in data:
+                self.batch_analytics.append(data)
+            else:
+                self.batch_raw.append(data)
         
         if (self.message_count + 1) % 100 == 0:
             sensor = data.get('sensor', 'unknown')

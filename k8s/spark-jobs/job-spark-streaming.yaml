@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: spark-streaming-job
+  namespace: hydraulic
+spec:
+  template:
+    metadata:
+      name: spark-streaming-job
+    spec:
+      serviceAccountName: spark
+      containers:
+        - name: spark-submit
+          image: apache/spark:3.5.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPARK_MASTER_URL
+              value: "spark://spark-master-svc:7077"
+            - name: HADOOP_USER_NAME
+              value: "root"
+            - name: KAFKA_BROKER
+              value: "kafka-service.kafka.svc.cluster.local:9092"
+            - name: SPARK_DRIVER_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          command:
+            - "/opt/spark/bin/spark-submit"
+            - "--packages"
+            - "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0"
+            - "--master"
+            - "local[2]"
+            - "--deploy-mode"
+            - "client"
+            - "--conf"
+            - "spark.kubernetes.container.image=apache/spark:3.5.0"
+            - "--conf"
+            - "spark.kubernetes.authenticate.driver.serviceAccountName=spark"
+            - "--conf"
+            - "spark.kubernetes.namespace=hydraulic"
+            - "--conf"
+            - "spark.jars.ivy=/tmp/.ivy"
+            - "--conf"
+            - "spark.driver.memory=4g"
+            - "/opt/spark-apps/spark_processor.py"
+          volumeMounts:
+            - name: spark-apps-source
+              mountPath: /opt/spark-apps
+          resources:
+            limits:
+              memory: "6Gi"
+              cpu: "2"
+            requests:
+              memory: "2Gi"
+              cpu: "1"
+      restartPolicy: OnFailure
+      volumes:
+        - name: spark-apps-source
+          configMap:
+            name: hydraulic-spark-apps

@@ -1,0 +1,129 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  ports:
+  - port: 9092
+    name: k8s-internal
+  - port: 9093
+    name: controller
+  clusterIP: None
+  selector:
+    app: kafka
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-service
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  type: ClusterIP 
+  ports:
+  - port: 9092
+    targetPort: 9092
+    protocol: TCP
+    name: internal
+  - port: 29092
+    targetPort: 29092
+    protocol: TCP
+    name: external
+  selector:
+    app: kafka
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  serviceName: "kafka-headless"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+
+      containers:
+      - name: kafka
+        image: confluentinc/cp-kafka:7.4.0
+        ports:
+        - containerPort: 9092
+        - containerPort: 9093
+        - containerPort: 29092
+        
+        # Load base configuration from ConfigMap
+        envFrom:
+          - configMapRef:
+              name: kafka-config
+        
+        # Set KAFKA_ADVERTISED_LISTENERS with proper variable substitution
+        env:
+          - name: KAFKA_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: KAFKA_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          # CRITICAL: Set advertised listeners using shell substitution
+          - name: KAFKA_ADVERTISED_LISTENERS
+            value: "K8S_INTERNAL://$(KAFKA_POD_NAME).kafka-headless.$(KAFKA_POD_NAMESPACE).svc.cluster.local:9092,EXTERNAL://localhost:29092"
+          # Limit JVM heap for local machine
+          - name: KAFKA_HEAP_OPTS
+            value: "-Xmx512M -Xms512M"
+        
+        volumeMounts:
+        - name: kafka-data
+          mountPath: /var/lib/kafka/data
+        
+
+
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+        
+        livenessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 45
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+        
+        readinessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+      volumes:
+      - name: kafka-data
+        persistentVolumeClaim:
+          claimName: kafka-pvc
+      
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ["sh", "-c", "chown -R 1000:1000 /var/lib/kafka/data"]
+        volumeMounts:
+        - name: kafka-data
+          mountPath: /var/lib/kafka/data

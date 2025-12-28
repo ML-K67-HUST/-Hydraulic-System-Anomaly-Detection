@@ -1,0 +1,130 @@
+[
+  {
+    "feature": "PS5_mean",
+    "importance": 0.13767278628679241
+  },
+  {
+    "feature": "TS3_mean",
+    "importance": 0.11853186330226566
+  },
+  {
+    "feature": "TS1_mean",
+    "importance": 0.11553798488735614
+  },
+  {
+    "feature": "VS1_std",
+    "importance": 0.07955275648046733
+  },
+  {
+    "feature": "TS2_std",
+    "importance": 0.06798786455275005
+  },
+  {
+    "feature": "TS4_mean",
+    "importance": 0.06666666666666668
+  },
+  {
+    "feature": "FS2_mean",
+    "importance": 0.06521126760563381
+  },
+  {
+    "feature": "PS4_mean",
+    "importance": 0.05
+  },
+  {
+    "feature": "SE_std",
+    "importance": 0.046627920425630354
+  },
+  {
+    "feature": "PS1_std",
+    "importance": 0.04507575757575758
+  },
+  {
+    "feature": "FS2_std",
+    "importance": 0.037900092033950304
+  },
+  {
+    "feature": "PS3_mean",
+    "importance": 0.034375
+  },
+  {
+    "feature": "VS1_mean",
+    "importance": 0.03409090909090909
+  },
+  {
+    "feature": "PS2_std",
+    "importance": 0.03333333333333334
+  },
+  {
+    "feature": "TS2_mean",
+    "importance": 0.029957050823192555
+  },
+  {
+    "feature": "TS1_std",
+    "importance": 0.015624999999999995
+  },
+  {
+    "feature": "PS1_mean",
+    "importance": 0.011006289308176093
+  },
+  {
+    "feature": "PS6_mean",
+    "importance": 0.010847457627118638
+  },
+  {
+    "feature": "null_mean",
+    "importance": 0.0
+  },
+  {
+    "feature": "null_std",
+    "importance": 0.0
+  },
+  {
+    "feature": "EPS1_mean",
+    "importance": 0.0
+  },
+  {
+    "feature": "EPS1_std",
+    "importance": 0.0
+  },
+  {
+    "feature": "FS1_mean",
+    "importance": 0.0
+  },
+  {
+    "feature": "FS1_std",
+    "importance": 0.0
+  },
+  {
+    "feature": "PS2_mean",
+    "importance": 0.0
+  },
+  {
+    "feature": "PS3_std",
+    "importance": 0.0
+  },
+  {
+    "feature": "PS4_std",
+    "importance": 0.0
+  },
+  {
+    "feature": "PS5_std",
+    "importance": 0.0
+  },
+  {
+    "feature": "PS6_std",
+    "importance": 0.0
+  },
+  {
+    "feature": "SE_mean",
+    "importance": 0.0
+  },
+  {
+    "feature": "TS3_std",
+    "importance": 0.0
+  },
+  {
+    "feature": "TS4_std",
+    "importance": 0.0
+  }
+]
