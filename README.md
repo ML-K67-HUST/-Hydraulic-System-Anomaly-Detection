@@ -1,112 +1,97 @@
-# 🔧 Hydraulic System Anomaly Detection (Kubernetes Version)
+# Hydraulic System Anomaly Detection
 
-Production-grade Anomaly Detection Pipeline using **Spark Structured Streaming**, **Kafka**, and **Kubernetes**.
+> **Course**: Introduction to Big Data (IT4931)  
+> **School**: Hanoi University of Science and Technology (HUST)  
+> **Semester**: 2025.1
 
-## 🚀 Quick Start (Kubernetes)
+![Banner](https://img.shields.io/badge/Big%20Data-Spark%20%7C%20Kafka%20%7C%20K8s-blue?style=for-the-badge&logo=apachespark)
+![Status](https://img.shields.io/badge/Status-Active-success?style=for-the-badge)
 
-### 1. Prerequisites
-- **Docker Desktop** (running)
-- **Kind** (Kubernetes in Docker) or **Minikube**
-- **Kubectl**
+## Project Overview
 
-### 2. One-Click Deployment
-This script builds images, loads them into Kind, and deploys the entire stack (HDFS, Kafka, Spark, Prom/Grafana).
+This project implements a scalable, **End-to-End Big Data Pipeline** for monitoring and detecting anomalies in a hydraulic system. It leverages a modern Lambda Architecture to process real-time sensor data, detect faults instantly, and archive data for long-term machine learning analysis.
 
-```bash
-# Make script executable
-chmod +x start-k8s.sh
-
-# Run deployment
-./start-k8s.sh
-```
-
-### 3. Submit Spark Streaming Job
-Once the deployment finishes, you need to manually submit the Spark job from the client pod:
-
-```bash
-# Access Spark Client Pod
-kubectl exec -it spark-submit-client -n hdfs -- /bin/bash
-
-# Submit Job (Copy & Paste this inside the pod)
-/opt/spark/bin/spark-submit \
-  --master yarn \
-  --deploy-mode client \
-  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0 \
-  --conf spark.driver.host=$(hostname -i) \
-  --conf spark.executor.memory=2g \
-  --conf spark.driver.memory=1g \
-  --conf spark.executor.cores=2 \
-  --conf spark.sql.shuffle.partitions=17 \
-  /app/spark-apps/spark_processor.py
-```
-
-### 4. Start Data Ingestion (Producer)
-Open a new terminal to start simulating sensor data:
-
-```bash
-# Install dependencies if needed
-pip install kafka-python prometheus-client requests
-
-# Run Producer (Continuous Mode - 100 cycles)
-python src/producer.py --continuous 100
-```
-
-### 5. Start Analytics Consumer
-Open another terminal to process analytics messages:
-
-```bash
-python src/consumer_analytics.py
-```
-
-### 6. Access Dashboards
-- **Grafana**: [http://localhost:3000](http://localhost:3000) (admin/admin)
-- **Spark UI**:
-  ```bash
-  kubectl port-forward pod/spark-submit-client 4040:4040 -n hdfs
-  # Open http://localhost:4040
-  ```
+### Key Features
+*   **Real-time Ingestion**: High-throughput data streaming with **Apache Kafka**.
+*   **Steam Processing**: Low-latency ETL and feature extraction using **Spark Structured Streaming**.
+*   **Data Lake**: Reliable long-term storage with **HDFS (Parquet format)**.
+*   **Machine Learning**: Failure classification using **Spark MLlib** (Random Forest) tracked by **MLflow**.
+*   **Monitoring**: Interactive dashboards with **Grafana** & **Prometheus**.
+*   **Cloud Native**: Fully containerized and orchestrated on **Kubernetes (Kind)**.
 
 ---
 
-## 🏗️ Architecture
+## 👥 Team Members & Contributions
 
+| Member | Student ID | Main Responsibility | Key Technical Contribution |
+| :--- | :--- | :--- | :--- |
+| **Pham Tran Tuan Khang** | 20225503 | Spark Streaming, Analytics, MongoDB | Window Aggregation, Watermarking logic, PromQL Dashboards. |
+| **Quach Tuan Anh** | 20225469 | Data Ingestion, Kafka | Multi-threaded Producer, Drift Compensation Algorithm. |
+| **Nguyen Tran Nghia** | 20225452 | HDFS, Data Lake | HDFS Architecture, Parquet Optimization, Repartitioning. |
+| **Dinh Van Kien** | 20225505 | ML Pipeline, MLOps | Feature Engineering (Pivot), Random Forest, MLflow Registry. |
+| **Pham Van Vu Hoan** | 20235497 | Kubernetes, Deployment | K8s StatefulSets, Dynamic Advertised Listeners, Infrastructure Code. |
+
+---
+
+## Architecture
+
+```mermaid
+graph LR
+    P[Sensor Data] -->|Producer| K[Kafka]
+    K -->|Stream| S[Spark Streaming]
+    S -->|Hot Path| M[MongoDB]
+    S -->|Cold Path| H[HDFS]
+    M --> G[Grafana]
+    H --> T[Spark Trainer]
+    T -->|Log Model| ML[MLflow]
 ```
-Sensors (Python) → Kafka (Hydraulic Topics) → Spark Streaming (ETL/Agg/ML)
-                                                  ↓
-                                          +-------+-------+
-                                          ↓               ↓
-                                    HDFS (Parquet)   Kafka (Analytics)
-                                          ↓               ↓
-                                    Batch Training   Python Consumer
-                                                          ↓
-                                                     Prometheus/Grafana
-```
 
-## 📁 Project Structure
+---
 
-| Directory | Purpose |
-|-----------|---------|
-| `k8s/` | Kubernetes Manifests (StatefulSets, Services, ConfigMaps) |
-| `src/` | Python Code (Producer, Consumer) |
-| `spark-apps/` | Spark Logic (Processor, Trainer) |
-| `data/` | UCI Raw Dataset |
-| `report/` | Project Documentation & Final Report |
+## Getting Started
 
-## 🔧 Troubleshooting
+### Prerequisites
+*   Docker Desktop & Kind
+*   Kubectl
+*   Python 3.10+
 
-**1. Spark Job Hanging?**
-Check if `spark.driver.host` is set correctly.
+### 1️⃣ Quick Start (Single Script)
+We provide a unified script to deploy the entire stack (K8s, HDFS, Kafka, App) in one go:
+
 ```bash
-kubectl logs spark-submit-client -n hdfs
+# Deploy entire infrastructure and application
+./start-k8s.sh
+./deploy-all.sh
 ```
 
-**2. Kafka Connection Failed?**
-Ensure you are using the correct listener:
-- Inside K8s: `kafka:29092`
-- From Host: `localhost:9092`
+### 2️⃣ Access Services
+Once deployed, run the forwarding script to access UIs:
 
-**3. Reset Everything**
 ```bash
-kind delete cluster --name bigdata-cluster
-kind create cluster --name bigdata-cluster --config cluster-config.yaml
+./forward_all.sh
 ```
+
+| Service | URL | Credentials |
+| :--- | :--- | :--- |
+| **Grafana** | [http://localhost:3000](http://localhost:3000) | `admin` / `admin` |
+| **MLflow** | [http://localhost:5050](http://localhost:5050) | - |
+| **Spark UI** | [http://localhost:4040](http://localhost:4040) | - |
+| **HDFS NameNode** | [http://localhost:9870](http://localhost:9870) | - |
+
+### 3️⃣ Detailed Instructions
+For a step-by-step guide on running the pipelines (Streaming & Training), please refer to:
+👉 **[INSTRUCTION.md](INSTRUCTION.md)**
+
+---
+
+## 📂 Project Structure
+
+```
+├── k8s/                  # Kubernetes Manifests (HDFS, Kafka, Mongo...)
+├── spark-apps/           # Spark Jobs (Processor & Trainer)
+├── src/                  # Producer, Consumer, & Dashboard Scripts
+├── reports/              # Final Project Report & Chapters
+├── deploy-all.sh         # Main Deployment Script
+└── INSTRUCTION.md        # User Guide
+```
+

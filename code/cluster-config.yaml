@@ -1,0 +1,28 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: bigdata-cluster
+
+nodes:
+  # --- 1. Control Plane Node ---
+  - role: control-plane
+    extraMounts:
+      - hostPath: /Users/khangtuan/kind-data/mongodb-data
+        containerPath: /mnt/mongodb
+
+  # --- 2. Infra Master Node (HDFS NN + YARN RM + ZK) ---
+  - role: worker
+    extraMounts:
+      - hostPath: /Users/khangtuan/kind-data/k8s-master-data
+        containerPath: /mnt/infra-pv
+
+  # --- 3. HDFS Worker Node (DataNode + NodeManager) ---
+  - role: worker
+    extraMounts:
+      - hostPath: /Users/khangtuan/kind-data/hdfs-worker-data
+        containerPath: /mnt/hdfs/datanode
+
+  # --- 4. Kafka Broker Node ---
+  - role: worker
+    extraMounts:
+      - hostPath: /Users/khangtuan/kind-data/kafka-broker-data
+        containerPath: /mnt/kafka-logs

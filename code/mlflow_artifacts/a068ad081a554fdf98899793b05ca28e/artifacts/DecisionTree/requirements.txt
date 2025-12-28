@@ -1,0 +1,5 @@
+mlflow==3.8.1
+numpy==2.2.6
+pandas==2.3.3
+pyspark==4.1.0
+scipy==1.15.3

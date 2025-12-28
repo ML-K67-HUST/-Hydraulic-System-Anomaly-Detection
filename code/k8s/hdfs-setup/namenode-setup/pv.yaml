@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: namenode-pv-node0
+spec:
+  # IMPORTANT: This StorageClass must be defined in your cluster
+  storageClassName: hdfs-name-storage
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  # --- Local Path Configuration ---
+  # --- Host Path Configuration (Simpler for Docker Desktop) ---
+  hostPath:
+    path: /tmp/hdfs-name
+  # Removed nodeAffinity to allow scheduling on any available node
